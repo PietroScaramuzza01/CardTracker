@@ -1,0 +1,328 @@
+/* Layout base */
+body {
+  margin: 0;
+  background-color: #0f172a;
+  font-family: "Inter", system-ui, sans-serif;
+  color: #e2e8f0;
+  display: flex;
+  height: 100vh;
+}
+
+.container {
+  display: flex;
+  gap: 20px; /* distanza tra le colonne */
+}
+
+/* inverti le colonne */
+.card-tracker { order: 2; }
+.right-side { order: 1; }
+
+/* Colonna sinistra */
+.card-tracker {
+  width: 50%;
+  max-width: 600px;
+  padding: 2rem;
+  background-color: #1e293b;
+  border-radius: 16px;
+  margin: auto;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+
+h1 {
+  font-size: 1.8rem;
+  margin-bottom: 0.2rem;
+  font-weight: 600;
+}
+
+.subtitle {
+  color: #94a3b8;
+  margin-bottom: 1.5rem;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem 1rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+}
+
+.stats input {
+  width: 50px;
+  background: #0f172a;
+  color: #f8fafc;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.input-row input {
+  flex: 1;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  padding: 0.4rem;
+  color: #f1f5f9;
+}
+
+.input-row button {
+  background: #334155;
+  border: none;
+  color: #f8fafc;
+  border-radius: 6px;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.input-row button:hover {
+  background: #475569;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.grid button {
+  padding: 1rem;
+  font-size: 2rem;
+  border-radius: 0.75rem;
+  background-color: #334155;
+  color: white;
+  border: none;
+  width: 100%;
+  transition: 0.2s;
+}
+.grid button:active {
+  background-color: #64748b;
+  transform: scale(0.96);
+}
+
+.grid button:hover {
+  background: #475569;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+}
+table tr {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+table tr td {
+  padding: 0.4rem 0.6rem;
+}
+
+table tr[style*="#7f1d1d"] td {
+  color: #fecaca; /* testo chiaro su rosso */
+}
+
+table tr[style*="#78350f"] td {
+  color: #fef3c7; /* testo chiaro su arancione */
+}
+
+table tr[style*="#14532d"] td {
+  color: #bbf7d0; /* testo chiaro su verde */
+}
+
+
+th, td {
+  text-align: left;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid #334155;
+}
+
+.actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1rem;
+}
+
+.actions button {
+  flex: 1;
+  margin: 0 0.3rem;
+  background: #334155;
+  border: none;
+  color: #f8fafc;
+  padding: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.actions button:hover {
+  background: #475569;
+}
+
+.summary {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  color: #cbd5e1;
+}
+
+/* Colonna destra (placeholder) */
+.right-side {
+  width: 50%;
+  background-color: #0f172a;
+}
+#true-count {
+  padding: 0.2rem 0.4rem;
+  border-radius: 6px;
+  font-weight: bold;
+}
+/* --- Colonna destra: modulo giocatori / dealer --- */
+.right-side {
+  width: 50%;
+  background-color: #0f172a;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  overflow-y: auto;
+}
+
+.right-side h2 {
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.dealer-box {
+  background-color: #1e293b;
+  padding: 1rem;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.dealer-box h3 {
+  margin-bottom: 0.5rem;
+}
+
+.card-display {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #fef3c7;
+  margin-top: 0.5rem;
+}
+
+/* Controllo numero giocatori */
+.player-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.player-controls input {
+  width: 50px;
+  background: #0f172a;
+  color: #f8fafc;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  text-align: center;
+}
+
+/* Fila giocatori */
+.players-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+}
+
+.player-box {
+  background-color: #1e293b;
+  border-radius: 12px;
+  padding: 0.6rem;
+  width: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: background-color 0.3s, border 0.3s;
+}
+
+.player-box.active {
+  border: 2px solid #3b82f6; /* evidenzia box attivo */
+}
+
+.player-box.owner {
+  background-color: #14532d; /* verde chiaro per box di proprietà */
+}
+
+.player-header {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  font-weight: 500;
+  margin-bottom: 0.3rem;
+}
+
+.player-header label {
+  font-weight: normal;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.player-box button.update-suggestion {
+  margin-top: 0.4rem;
+  padding: 0.3rem 0.5rem;
+  border: none;
+  border-radius: 6px;
+  background-color: #334155;
+  color: #f8fafc;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.2s;
+}
+
+.player-box button.update-suggestion:hover {
+  background-color: #475569;
+}
+
+.player-box .suggestion {
+  margin-top: 0.4rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #fef3c7;
+  text-align: center;
+  min-height: 1.2em;
+}
+
+/* Scroll se tanti box */
+.right-side::-webkit-scrollbar {
+  width: 6px;
+}
+
+.right-side::-webkit-scrollbar-thumb {
+  background-color: #334155;
+  border-radius: 3px;
+}
+
+.right-side::-webkit-scrollbar-track {
+  background-color: #0f172a;
+}
+#close-round {
+  background: #334155;      /* stesso colore dei pulsanti principali */
+  border: none;
+  color: #f8fafc;
+  padding: 0.5rem 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-top: 1rem;         /* un po’ di spazio rispetto agli altri elementi */
+  width: 100%;              /* occupa tutta la larghezza della colonna destra */
+  font-weight: 500;
+}
+
+#close-round:hover {
+  background: #475569;      /* hover effetto leggermente più chiaro */
+}

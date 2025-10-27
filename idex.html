@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Card Tracker 🃏</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="container">
+    <div class="card-tracker">
+      <h1>Card Tracker</h1>
+      <p class="subtitle">Conteggio Blackjack Style</p>
+
+      <div class="stats">
+        <div><span>Mazzi in uso:</span><input type="number" id="numDecks" value="8" min="1"></div>
+        <div><span>Totale carte:</span><strong id="total-cards">104</strong></div>
+        <div><span>Carte rimanenti:</span><strong id="remaining-cards">97</strong></div>
+        <div><span>Conteggio:</span><strong id="running-count">+3</strong></div>
+        <div><span>True Count:</span><strong id="true-count">0</strong></div>
+      </div>
+
+      <div class="input-row">
+        <label>Inserisci carta:</label>
+        <input type="text" id="card-input" maxlength="2">
+        <button id="add-card">Aggiungi</button>
+      </div>
+
+      <div class="grid grid-cols-5 gap-3 text-lg mt-4">
+  <button>A</button>
+  <button>2</button>
+  <button>3</button>
+  <button>4</button>
+  <button>5</button>
+  <button>6</button>
+  <button>7</button>
+  <button>8</button>
+  <button>9</button>
+  <button>10</button>
+  <button>J</button>
+  <button>Q</button>
+  <button>K</button>
+</div>
+
+
+      <h2>Stato del mazzo</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Valore</th>
+            <th>Rimaste</th>
+            <th>Conteggio effetto</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>A</td><td>8</td><td>-1</td></tr>
+          <tr><td>3</td><td>12</td><td>+1</td></tr>
+          <tr><td>2</td><td>13</td><td>+1</td></tr>
+          <tr><td>K</td><td>17</td><td>-1</td></tr>
+        </tbody>
+      </table>
+
+      <div class="actions">
+        <button id="undo">Undo</button>
+        <button id="reset">Reset</button>
+        <button id="save">Salva stato</button>
+      </div>
+
+      <div class="summary">
+  <p>Ultima carta inserita: <strong id="last-card">10</strong></p>
+  <p>Carte alte rimanenti: <strong id="high-cards">28</strong></p>
+  <p>Carte basse: <strong id="low-cards">34</strong></p>
+</div>
+
+    </div>
+
+    <!-- Colonna destra: modulo giocatori / dealer -->
+    <div class="right-side">
+        <button id="close-round">Chiudi Round</button>
+      <h2>Round Corrente</h2>
+      <div class="dealer-box">
+        <h3>Dealer</h3>
+        <div class="card-display" id="dealer-card">—</div>
+      </div>
+
+      <div class="player-controls">
+        <label>Seleziona numero di giocatori attivi:</label>
+        <input type="number" id="active-players" value="5" min="1" max="7">
+      </div>
+
+      <div class="players-row">
+        <!-- 7 box giocatori -->
+        <div class="player-box" id="player-1">
+          <div class="player-header">
+            <span>1</span>
+            <label><input type="checkbox" class="owner-check"> Mio</label>
+          </div>
+          <div class="card-display">—</div>
+          <button class="update-suggestion">Aggiorna</button>
+          <div class="suggestion">—</div>
+        </div>
+
+        <div class="player-box" id="player-2">
+          <div class="player-header">
+            <span>2</span>
+            <label><input type="checkbox" class="owner-check"> Mio</label>
+          </div>
+          <div class="card-display">—</div>
+          <button class="update-suggestion">Aggiorna</button>
+          <div class="suggestion">—</div>
+        </div>
+
+        <div class="player-box" id="player-3">
+          <div class="player-header">
+            <span>3</span>
+            <label><input type="checkbox" class="owner-check"> Mio</label>
+          </div>
+          <div class="card-display">—</div>
+          <button class="update-suggestion">Aggiorna</button>
+          <div class="suggestion">—</div>
+        </div>
+
+        <div class="player-box" id="player-4">
+          <div class="player-header">
+            <span>4</span>
+            <label><input type="checkbox" class="owner-check"> Mio</label>
+          </div>
+          <div class="card-display">—</div>
+          <button class="update-suggestion">Aggiorna</button>
+          <div class="suggestion">—</div>
+        </div>
+
+        <div class="player-box" id="player-5">
+          <div class="player-header">
+            <span>5</span>
+            <label><input type="checkbox" class="owner-check"> Mio</label>
+          </div>
+          <div class="card-display">—</div>
+          <button class="update-suggestion">Aggiorna</button>
+          <div class="suggestion">—</div>
+        </div>
+
+        <div class="player-box" id="player-6">
+          <div class="player-header">
+            <span>6</span>
+            <label><input type="checkbox" class="owner-check"> Mio</label>
+          </div>
+          <div class="card-display">—</div>
+          <button class="update-suggestion">Aggiorna</button>
+          <div class="suggestion">—</div>
+        </div>
+
+        <div class="player-box" id="player-7">
+          <div class="player-header">
+            <span>7</span>
+            <label><input type="checkbox" class="owner-check"> Mio</label>
+          </div>
+          <div class="card-display">—</div>
+          <button class="update-suggestion">Aggiorna</button>
+          <div class="suggestion">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js.js"></script>
+</body>
+</html>
