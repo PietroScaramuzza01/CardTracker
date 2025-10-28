@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Card Tracker 🃏 V.0.2</title>
+  <title>Card Tracker 🃏 V. 0.3</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -84,83 +84,91 @@
         <div class="card-display" id="dealer-card">—</div>
       </div>
 
-      <div class="player-controls">
+     <!-- <div class="player-controls">
         <label>Seleziona numero di giocatori attivi:</label>
         <input type="number" id="active-players" value="5" min="1" max="7">
       </div>
-
+-->
       <div class="players-row">
-        <!-- 7 box giocatori -->
-        <div class="player-box" id="player-1">
-          <div class="player-header">
-            <span>1</span>
-            <label><input type="checkbox" class="owner-check"> Mio</label>
-          </div>
-          <div class="card-display">—</div>
-          <button class="update-suggestion">Aggiorna</button>
-          <div class="suggestion">—</div>
-        </div>
+  <!-- 7 box giocatori uniformati -->
+  <div class="player-box" id="player-1">
+    <div class="player-header">
+      <span>1</span>
+      <label><input type="checkbox" class="active-check"> Attivo</label>
+      <label><input type="checkbox" class="owner-check"> Mio</label>
+    </div>
+    <div class="card-display">—</div>
+    <button class="update-suggestion">Aggiorna</button>
+    <div class="suggestion">—</div>
+  </div>
 
-        <div class="player-box" id="player-2">
-          <div class="player-header">
-            <span>2</span>
-            <label><input type="checkbox" class="owner-check"> Mio</label>
-          </div>
-          <div class="card-display">—</div>
-          <button class="update-suggestion">Aggiorna</button>
-          <div class="suggestion">—</div>
-        </div>
+  <div class="player-box" id="player-2">
+    <div class="player-header">
+      <span>2</span>
+      <label><input type="checkbox" class="active-check"> Attivo</label>
+      <label><input type="checkbox" class="owner-check"> Mio</label>
+    </div>
+    <div class="card-display">—</div>
+    <button class="update-suggestion">Aggiorna</button>
+    <div class="suggestion">—</div>
+  </div>
 
-        <div class="player-box" id="player-3">
-          <div class="player-header">
-            <span>3</span>
-            <label><input type="checkbox" class="owner-check"> Mio</label>
-          </div>
-          <div class="card-display">—</div>
-          <button class="update-suggestion">Aggiorna</button>
-          <div class="suggestion">—</div>
-        </div>
+  <div class="player-box" id="player-3">
+    <div class="player-header">
+      <span>3</span>
+      <label><input type="checkbox" class="active-check"> Attivo</label>
+      <label><input type="checkbox" class="owner-check"> Mio</label>
+    </div>
+    <div class="card-display">—</div>
+    <button class="update-suggestion">Aggiorna</button>
+    <div class="suggestion">—</div>
+  </div>
 
-        <div class="player-box" id="player-4">
-          <div class="player-header">
-            <span>4</span>
-            <label><input type="checkbox" class="owner-check"> Mio</label>
-          </div>
-          <div class="card-display">—</div>
-          <button class="update-suggestion">Aggiorna</button>
-          <div class="suggestion">—</div>
-        </div>
+  <div class="player-box" id="player-4">
+    <div class="player-header">
+      <span>4</span>
+      <label><input type="checkbox" class="active-check"> Attivo</label>
+      <label><input type="checkbox" class="owner-check"> Mio</label>
+    </div>
+    <div class="card-display">—</div>
+    <button class="update-suggestion">Aggiorna</button>
+    <div class="suggestion">—</div>
+  </div>
 
-        <div class="player-box" id="player-5">
-          <div class="player-header">
-            <span>5</span>
-            <label><input type="checkbox" class="owner-check"> Mio</label>
-          </div>
-          <div class="card-display">—</div>
-          <button class="update-suggestion">Aggiorna</button>
-          <div class="suggestion">—</div>
-        </div>
+  <div class="player-box" id="player-5">
+    <div class="player-header">
+      <span>5</span>
+      <label><input type="checkbox" class="active-check"> Attivo</label>
+      <label><input type="checkbox" class="owner-check"> Mio</label>
+    </div>
+    <div class="card-display">—</div>
+    <button class="update-suggestion">Aggiorna</button>
+    <div class="suggestion">—</div>
+  </div>
 
-        <div class="player-box" id="player-6">
-          <div class="player-header">
-            <span>6</span>
-            <label><input type="checkbox" class="owner-check"> Mio</label>
-          </div>
-          <div class="card-display">—</div>
-          <button class="update-suggestion">Aggiorna</button>
-          <div class="suggestion">—</div>
-        </div>
+  <div class="player-box" id="player-6">
+    <div class="player-header">
+      <span>6</span>
+      <label><input type="checkbox" class="active-check"> Attivo</label>
+      <label><input type="checkbox" class="owner-check"> Mio</label>
+    </div>
+    <div class="card-display">—</div>
+    <button class="update-suggestion">Aggiorna</button>
+    <div class="suggestion">—</div>
+  </div>
 
-        <div class="player-box" id="player-7">
-          <div class="player-header">
-            <span>7</span>
-            <label><input type="checkbox" class="owner-check"> Mio</label>
-          </div>
-          <div class="card-display">—</div>
-          <button class="update-suggestion">Aggiorna</button>
-          <div class="suggestion">—</div>
-        </div>
-      </div>
+  <div class="player-box" id="player-7">
+    <div class="player-header">
+      <span>7</span>
+      <label><input type="checkbox" class="active-check"> Attivo</label>
+      <label><input type="checkbox" class="owner-check"> Mio</label>
+    </div>
+    <div class="card-display">—</div>
+    <button class="update-suggestion">Aggiorna</button>
+    <div class="suggestion">—</div>
+  </div>
+</div>
+
     </div>
   </div>
 

@@ -20,6 +20,9 @@ let remainingCards = totalCards;
 let runningCount = 0;
 let drawnCards = []; // storico tutte carte inserite in ordine
 let deckState = {};  // { "A":n, "2":n, ... "K":n }
+// storico delle assegnazioni per gestire undo correttamente
+let assignmentHistory = []; // elementi: { card: "10", recipient: idx | "DEALER", phase: "initial"|"manual" }
+
 
 let boxes = Array.from({length:7},(_,i)=>({
   id: i+1,
@@ -30,6 +33,7 @@ let boxes = Array.from({length:7},(_,i)=>({
   tick: false
 }));
 let dealerCard = null;
+
 
 let initialDistributionComplete = false;
 let nextInitialRecipientIndex = 0; // indice nella sequenza recipientSeq
@@ -53,7 +57,6 @@ const gridButtons = document.querySelectorAll(".grid button");
 const undoBtn = document.getElementById("undo");
 const resetBtn = document.getElementById("reset");
 const saveBtn = document.getElementById("save");
-const activePlayersInput = document.getElementById("active-players");
 const dealerCardEl = document.getElementById("dealer-card");
 const playerBoxes = Array.from(document.querySelectorAll(".player-box"));
 const closeRoundBtn = document.getElementById("close-round");
@@ -74,175 +77,188 @@ function initDeck(){
   nextInitialRecipientIndex = 0;
   buildRecipientSeq();
 
-  // apri round automaticamente
-  const activeCount = parseInt(activePlayersInput.value) || 5;
-  boxes.forEach((b,idx)=> b.active = idx < activeCount);
-
   updateUI();
   updateRightSide();
 }
 
 // --- CREA SEQUENZA DI DISTRIBUZIONE (players 1..N, DEALER) ---
 function buildRecipientSeq(){
-  const activeCount = parseInt(activePlayersInput.value) || 5;
-  recipientSeq = [];
-  for (let i=0;i<activeCount;i++) recipientSeq.push(i); // indices players
+  recipientSeq = boxes.map((b,i) => b.active ? i : null).filter(i => i !== null);
   recipientSeq.push("DEALER");
   nextInitialRecipientIndex = 0;
 }
 
+
 // --- UPDATE UI SINISTRA ---
-function updateUI(){
+function updateUI() {
   totalCardsEl.textContent = totalCards;
   remainingEl.textContent = remainingCards;
-  runningCountEl.textContent = runningCount > 0 ? `+${runningCount}` : runningCount;
+  runningCountEl.textContent = runningCount>0?`+${runningCount}`:runningCount;
 
-  let decksRemaining = remainingCards / 52;
-  let trueCount = decksRemaining > 0 ? (runningCount / decksRemaining) : 0;
-  const trueCountDisplay = Math.abs(trueCount) >= 100 ? trueCount.toFixed(2) : (trueCount >= 0 ? `+${trueCount.toFixed(2)}` : trueCount.toFixed(2));
-  trueCountEl.textContent = trueCountDisplay;
+  let decksRemaining = remainingCards/52;
+  let trueCount = decksRemaining>0?(runningCount/decksRemaining).toFixed(2):0;
+  trueCountEl.textContent = trueCount>=0?`+${trueCount}`:trueCount;
 
-  // colorazione trueCount
-  if (trueCount < -2) { trueCountEl.style.backgroundColor = "#7f1d1d"; trueCountEl.style.color = "#fecaca"; }
-  else if (trueCount > 2) { trueCountEl.style.backgroundColor = "#14532d"; trueCountEl.style.color = "#bbf7d0"; }
-  else { trueCountEl.style.backgroundColor = "#78350f"; trueCountEl.style.color = "#fef3c7"; }
+  // colore true count
+  if(trueCount<-2){trueCountEl.style.backgroundColor="#7f1d1d"; trueCountEl.style.color="#fecaca";}
+  else if(trueCount>2){trueCountEl.style.backgroundColor="#14532d"; trueCountEl.style.color="#bbf7d0";}
+  else{trueCountEl.style.backgroundColor="#78350f"; trueCountEl.style.color="#fef3c7";}
 
-  // tabella stato mazzo
-  tableBody.innerHTML = "";
-  cardValues.forEach(card => {
-    const tr = document.createElement("tr");
-    const effect = hiLoValues[card] ?? 0;
-    const remaining = deckState[card];
-    const maxForCard = 4 * numDecks;
-    const percentage = (remaining / maxForCard) * 100;
-
-    let rowColor = "";
-    if (remaining === 0) rowColor = "#7f1d1d";
-    else if (percentage <= 25) rowColor = "#78350f";
-    else if (percentage >= 75) rowColor = "#14532d";
-    else rowColor = "#1e293b";
-
-    tr.style.backgroundColor = rowColor;
-    tr.innerHTML = `<td>${card}</td><td>${remaining}</td><td>${effect>0? "+"+effect : effect}</td>`;
+  // tabella
+  tableBody.innerHTML="";
+  cardValues.forEach(card=>{
+    const tr=document.createElement("tr");
+    const effect=hiLoValues[card]||0;
+    const remaining=deckState[card];
+    const maxForCard=4*numDecks;
+    const percentage=(remaining/maxForCard)*100;
+    let rowColor="";
+    if(remaining===0) rowColor="#7f1d1d";
+    else if(percentage<=25) rowColor="#78350f";
+    else if(percentage>=75) rowColor="#14532d";
+    else rowColor="#1e293b";
+    tr.style.backgroundColor=rowColor;
+    tr.innerHTML=`<td>${card}</td><td>${remaining}</td><td>${effect>0?"+"+effect:effect}</td>`;
     tableBody.appendChild(tr);
   });
-
-  // high/low counts
-  const high = deckState["10"] + deckState["J"] + deckState["Q"] + deckState["K"] + deckState["A"];
-  const low = deckState["2"] + deckState["3"] + deckState["4"] + deckState["5"] + deckState["6"];
-  highCardsEl.textContent = high;
-  lowCardsEl.textContent = low;
 }
 
-// --- UPDATE COLONNA DESTRA ---
-function updateRightSide(){
-  dealerCardEl.textContent = dealerCard || "—";
+// --- AGGIORNA DESTRA ---
+function updateRightSide() {
+  dealerCardEl.textContent = dealerCard||"—";
   boxes.forEach((b,idx)=>{
-    const boxEl = playerBoxes[idx];
-    boxEl.querySelector(".card-display").textContent = b.cards.length ? b.cards.join(", ") : "—";
-    boxEl.querySelector(".suggestion").textContent = b.suggestion || "—";
-    boxEl.classList.toggle("active", b.active);
-    boxEl.classList.toggle("owner", b.owner);
-    const cb = boxEl.querySelector(".owner-check");
-    if(cb) cb.checked = b.owner;
+    const boxEl=playerBoxes[idx];
+    boxEl.querySelector(".card-display").textContent=b.cards.length?b.cards.join(", "):"—";
+    boxEl.querySelector(".suggestion").textContent=b.suggestion||"—";
+    boxEl.classList.toggle("active",b.active);
+    boxEl.classList.toggle("owner",b.owner);
+    boxEl.querySelector(".owner-check").checked=b.owner;
   });
 }
 
-// === AGGIUNGI CARTA (dalla UI) ===
-function addCard(value){
-  if (document.activeElement === cardInput) cardInput.blur(); // evita doppio input su iPad
+// --- AGGIUNGI CARTA ---
 
+
+function addCard(value) {
   value = value.toUpperCase();
   if (!cardValues.includes(value)) return alert("Carta non valida!");
   if (deckState[value] <= 0) return alert("Tutte le carte di questo valore sono già uscite!");
 
   deckState[value]--;
   remainingCards--;
-  runningCount += hiLoValues[value] ?? 0;
+  runningCount += hiLoValues[value] || 0;
   drawnCards.push(value);
   lastCardEl.textContent = value;
 
-  // se c'è un box che aspetta la carta (aggiorna manuale)
-  if (nextCardBoxId) {
+  if (!initialDistributionComplete) {
+    assignNextInitialCard(value);
+  } else if (nextCardBoxId) {
     const box = boxes[nextCardBoxId - 1];
     box.cards.push(value);
-    // calcola suggerimento tramite motore EV
-    const res = computeSuggestionForBox(nextCardBoxId - 1);
-    if (res) box.suggestion = res.action;
+
+    // Calcola suggerimento
+    const suggestionResult = computeSuggestionForBox(nextCardBoxId - 1);
+    box.suggestion = suggestionResult?.action || "—";
+
+    // LOG su console
+    console.log(`Box ${nextCardBoxId} - Carte: [${box.cards.join(", ")}], Suggerimento: ${box.suggestion}, EV: ${suggestionResult.ev.toFixed(3)}, True Count: ${suggestionResult.trueCount.toFixed(2)}`);
+
     nextCardBoxId = null;
   }
-  // altrimenti se la distribuzione iniziale non è completa, assegna in ordine
-  else if (!initialDistributionComplete) {
-    assignNextInitialCard(value);
-  }
-  // altrimenti carta rimane registrata (conteggi aggiornati) ma non assegnata
 
   updateUI();
   updateRightSide();
 }
 
+
+
 // === assegna NEXT initial card seguendo sequenza cyclic player..dealer .. player.. fino a completamento ===
+// funzione che assegna automaticamente le carte iniziali nell'ordine corretto
 function assignNextInitialCard(card) {
-  // build recipientSeq se mancante
-  if (!recipientSeq || recipientSeq.length === 0) buildRecipientSeq();
-  const activeCount = recipientSeq.length - 1; // last is DEALER
+  const activeBoxes = boxes.filter(b => b.active);
+  for (let b of activeBoxes) {
+    if (b.cards.length === 0) {
+      b.cards.push(card);
 
-  // We try to assign to next recipient that still needs cards.
-  let attempts = 0;
-  while (attempts < recipientSeq.length) {
-    const recipient = recipientSeq[nextInitialRecipientIndex];
-    nextInitialRecipientIndex = (nextInitialRecipientIndex + 1) % recipientSeq.length;
-    attempts++;
+      // LOG e calcolo suggerimento se box è di tua proprietà
+      if (b.owner) {
+  const idx = boxes.indexOf(b);
+  const suggestionResult = computeSuggestionForBox(idx) || {};
+  b.suggestion = suggestionResult.action || "—";
+  console.log(
+    `Box ${idx + 1} (Initial) - Carte: [${b.cards.join(", ")}], Suggerimento: ${b.suggestion}, EV: ${((suggestionResult.ev ?? 0).toFixed(3))}, True Count: ${((suggestionResult.trueCount ?? 0).toFixed(2))}`
+  );
+}
 
-    if (recipient === "DEALER") {
-      if (!dealerCard) {
-        dealerCard = card;
-        // after assigning dealer we check complete
-        checkInitialDistributionComplete();
-        return;
-      } else {
-        // dealer already has a card; continue searching
-        continue;
-      }
-    } else {
-      // recipient is player index
-      const b = boxes[recipient];
-      if (!b.active) continue;
-      if (b.cards.length < 2) {
-        b.cards.push(card);
-        // if owner, compute suggestion immediately for that box
-        if (b.owner) {
-          const res = computeSuggestionForBox(recipient);
-          if (res) b.suggestion = res.action;
-        }
-        checkInitialDistributionComplete();
-        return;
-      } else {
-        continue;
-      }
+
+      return checkInitialDistributionComplete();
     }
   }
-  // se arriviamo qui, forse tutte complete: set flag
-  checkInitialDistributionComplete();
-}
 
-// === check se tutte le initial cards sono state assegnate ===
-function checkInitialDistributionComplete(){
-  const activeBoxes = boxes.filter(b=>b.active);
-  const allBoxesTwo = activeBoxes.every(b => b.cards.length >= 2);
-  if (allBoxesTwo && dealerCard) {
-    initialDistributionComplete = true;
-    // quando completate, calcola suggerimenti per tutti i box owner
-    activeBoxes.forEach((b, idx) => {
+  if (!dealerCard) {
+    dealerCard = card;
+    return checkInitialDistributionComplete();
+  }
+
+  for (let b of activeBoxes) {
+    if (b.cards.length < 2) {
+      b.cards.push(card);
+
+      // LOG e calcolo suggerimento se box è di tua proprietà
       if (b.owner) {
-        const i = boxes.indexOf(b);
-        const res = computeSuggestionForBox(i);
-        if (res) b.suggestion = res.action;
+        const idx = boxes.indexOf(b);
+        const suggestionResult = computeSuggestionForBox(idx);
+        b.suggestion = suggestionResult?.action || "—";
+        console.log(`Box ${idx + 1} (Initial) - Carte: [${b.cards.join(", ")}], Suggerimento: ${b.suggestion}, EV: ${suggestionResult.ev.toFixed(3)}, True Count: ${suggestionResult.trueCount.toFixed(2)}`);
       }
-    });
-    updateRightSide();
+
+      return checkInitialDistributionComplete();
+    }
   }
 }
+
+
+function checkInitialDistributionComplete() {
+  const activeBoxes = boxes.filter(b => b.active);
+  const allBoxesHaveTwo = activeBoxes.every(b => b.cards.length >= 2);
+  if (allBoxesHaveTwo && dealerCard) {
+    initialDistributionComplete = true;
+  }
+}
+// --- DISTRIBUZIONE INITIAL CARDS ---
+function drawInitialCards() {
+  const activeBoxes = boxes.filter(b=>b.active);
+  if(!activeBoxes.length) return;
+  let cardIndex=0;
+  let dealerAssigned=false;
+
+  while(cardIndex<drawnCards.length){
+    for(let b of activeBoxes){
+      if(cardIndex>=drawnCards.length) break;
+      b.cards.push(drawnCards[cardIndex]);
+      cardIndex++;
+    }
+    if(!dealerAssigned && cardIndex<drawnCards.length){
+      dealerCard=drawnCards[cardIndex];
+      cardIndex++;
+      dealerAssigned=true;
+    }
+  }
+}
+
+function updateAllSuggestions() {
+  if (!dealerCard) return; // sicurezza
+  boxes.forEach((b, idx) => {
+    if (b.active && b.owner && b.cards.length > 0) {
+      const res = computeSuggestionForBox(idx);
+      b.suggestion = res?.action || "—";
+    }
+  });
+  updateRightSide();
+}
+
+
+
 
 // === CLOSE ROUND ===
 function closeRound(){
@@ -257,46 +273,48 @@ function closeRound(){
   updateRightSide();
 }
 
-// === UNDO ultima carta globale ===
-function undoCard(){
-  if (!drawnCards.length) return;
-  const last = drawnCards.pop();
-  // se last è stato assegnato a qualche box o dealer dobbiamo rimuoverlo anche da lì
-  // rimuoviamo prima occorrenza in ordine: ultima assegnazione a box/dealer (più semplice: scan boxes/dealer in reverse)
-  // Cerca nelle hands dall'ultima carta assegnata a primo (non perfetto ma pratico per uso manuale)
-  let removed = false;
-  // rimuovi da dealer se coincidente
-  if (dealerCard === last) { dealerCard = null; removed = true; }
-  // rimuovi dall'ultimo box che contiene quella carta (cerca reverse)
-  if (!removed) {
-    for (let i=boxes.length-1;i>=0;i--){
-      const idx = boxes[i].cards.lastIndexOf(last);
-      if (idx !== -1) { boxes[i].cards.splice(idx,1); removed = true; break; }
-    }
-  }
-  // aggiorna deckState e counts
-  deckState[last] = (deckState[last]||0) + 1;
-  remainingCards++;
-  runningCount -= hiLoValues[last] || 0;
-  lastCardEl.textContent = drawnCards.at(-1) || "—";
-  // reset initialDistributionComplete if needed
-  if (initialDistributionComplete) initialDistributionComplete = false;
-  updateUI();
+// --- CLOSE ROUND ---
+function closeRound(){
+  boxes.forEach(b => { b.cards = []; b.suggestion = null; b.tick = false; });
+  dealerCard = null;
+  initialDistributionComplete = false;
+  nextInitialRecipientIndex = 0;
+  buildRecipientSeq();
   updateRightSide();
 }
 
-// === SAVE / LOAD state ===
+// --- UNDO ---
+function undoCard(){
+  if (!drawnCards.length) return showMessage("Nessuna carta da annullare");
+  const last = drawnCards.pop();
+  deckState[last] = (deckState[last] || 0) + 1;
+  remainingCards++;
+  runningCount -= hiLoValues[last] || 0;
+
+  const lastAssign = assignmentHistory.pop();
+  if (lastAssign) {
+    if (lastAssign.recipient === "DEALER") dealerCard = null;
+    else if (typeof lastAssign.recipient === "number") {
+      const b = boxes[lastAssign.recipient];
+      const idx = b.cards.lastIndexOf(last);
+      if (idx !== -1) b.cards.splice(idx, 1);
+    }
+    if (lastAssign.phase === "initial") initialDistributionComplete = false;
+  }
+  lastCardEl.textContent = drawnCards.at(-1) || "—";
+  updateUI(); updateRightSide();
+}
+
+
+// --- SAVE / LOAD ---
 function saveState(){
-  const state = {
-    numDecks, totalCards, remainingCards, runningCount, deckState, drawnCards, boxes, dealerCard,
-    initialDistributionComplete
-  };
+  const state = { numDecks, totalCards, remainingCards, runningCount, deckState, drawnCards, boxes, dealerCard, initialDistributionComplete };
   localStorage.setItem("cardTrackerState", JSON.stringify(state));
   alert("Stato salvato ✅");
 }
 function loadState(){
   const saved = localStorage.getItem("cardTrackerState");
-  if (!saved) return initDeck();
+  if (!saved) { initDeck(); return; }
   try {
     const state = JSON.parse(saved);
     numDecks = state.numDecks || 8;
@@ -314,10 +332,11 @@ function loadState(){
     updateRightSide();
     lastCardEl.textContent = drawnCards.at(-1) || "—";
   } catch (e) {
-    console.error("Errore loading state:", e);
+    console.error("Load error", e);
     initDeck();
   }
 }
+
 
 // =================== EV ENGINE (dealer distribution + evaluateBestAction) ===================
 
@@ -520,33 +539,88 @@ function evaluateBestAction(playerCards, deckStateArg, dealerUpcard, canDouble=t
 }
 
 // === API helper: computeSuggestionForBox(boxIndex) ===
+// === API helper: computeSuggestionForBox(boxIndex) — versione sicura ===
 function computeSuggestionForBox(boxIndex) {
   const box = boxes[boxIndex];
-  if (!box || !box.active) return null;
-  // recompute true count
-  const decksRemaining = remainingCards / 52;
-  const tc = decksRemaining > 0 ? runningCount / decksRemaining : 0;
-  // clone deck for safety
-  const deckClone = cloneDeck(deckState);
-  const res = evaluateBestAction(box.cards.slice(), deckClone, dealerCard, true, true, false);
-  return { action: res.action, ev: res.ev, trueCount: tc };
+  if (!box || !box.active || !box.owner) return null;
+
+  // Se il dealer non è ancora definito, non possiamo calcolare un suggerimento.
+  if (!dealerCard || dealerCard === "—" || dealerCard === null) {
+    console.warn(`computeSuggestionForBox: dealerCard non definito, skip calcolo per box ${boxIndex+1}`);
+    return { action: "—", ev: 0 };
+  }
+
+  // Se la mano è vuota o incompleta (meno di 2 carte all’inizio), evitiamo di calcolare
+  if (!box.cards || box.cards.length === 0) {
+    return { action: "—", ev: 0 };
+  }
+
+  try {
+    const decksRemaining = remainingCards / 52;
+    const tc = decksRemaining > 0 ? runningCount / decksRemaining : 0;
+    const deckClone = cloneDeck(deckState);
+    const res = evaluateBestAction(box.cards.slice(), deckClone, dealerCard, true, true, false);
+
+    // Difesa finale: se la funzione EV ritorna NaN o valore assurdo
+    if (!res || !res.action || isNaN(res.ev)) {
+      console.warn("computeSuggestionForBox: risultato non valido", res);
+      return { action: "—", ev: 0, trueCount: tc };
+    }
+
+    return { action: res.action, ev: res.ev, trueCount: tc };
+  } catch (err) {
+    console.error("computeSuggestionForBox: errore nel calcolo EV", err);
+    return { action: "—", ev: 0 };
+  }
 }
+
 
 // =================== EVENT LISTENERS ===================
 
 // player boxes controls
 playerBoxes.forEach((boxEl, idx) => {
+  const ownerCb = boxEl.querySelector(".owner-check");
+  if (ownerCb) {
+    ownerCb.addEventListener("change", e => {
+      boxes[idx].owner = e.target.checked;
+      updateRightSide();
+       // Log di conferma
+      if (e.target.checked) {
+        console.log(`Box ${idx + 1} è ora di tua proprietà ✅`);
+      } else {
+        console.log(`Box ${idx + 1} NON è più di tua proprietà ❌`);
+      }
+    });
+  }
+
+  const activeCb = boxEl.querySelector(".active-check");
+  if (activeCb) {
+    activeCb.addEventListener("change", e => {
+      boxes[idx].active = e.target.checked;
+      buildRecipientSeq(); // aggiorna sequenza distribuzione iniziale
+      initialDistributionComplete = false;
+      updateRightSide();
+       // Log di conferma
+      if (e.target.checked) {
+        console.log(`Box ${idx + 1} è ora ATTIVO ✅`);
+      } else {
+        console.log(`Box ${idx + 1} NON è più ATTIVO ❌`);
+      }
+    });
+  }
+
   const updateBtn = boxEl.querySelector(".update-suggestion");
-  updateBtn.addEventListener("click", () => {
-    // set nextCardBoxId: the next card clicked will be assigned here
-    nextCardBoxId = idx + 1;
-    // visual feedback: temporary highlight (optional)
-    boxEl.classList.add("waiting-card");
-    setTimeout(()=>boxEl.classList.remove("waiting-card"), 4000);
-  });
-  const cb = boxEl.querySelector(".owner-check");
-  cb.addEventListener("change", e => { boxes[idx].owner = e.target.checked; updateRightSide(); });
+  if (updateBtn) {
+    updateBtn.addEventListener("click", () => {
+      nextCardBoxId = idx + 1; // manda la prossima carta a questo box
+      boxEl.classList.add("waiting-card");
+      setTimeout(()=>boxEl.classList.remove("waiting-card"), 4000);
+    });
+  }
 });
+
+
+
 
 // left controls
 // Supporto iPad + Touch + Input sicuro
@@ -568,7 +642,6 @@ undoBtn.addEventListener("click", ()=> undoCard());
 resetBtn.addEventListener("click", ()=> { if(confirm("Vuoi resettare la partita?")) initDeck(); });
 saveBtn.addEventListener("click", saveState);
 deckInput.addEventListener("change", ()=> { initDeck(); });
-activePlayersInput.addEventListener("change", ()=> { buildRecipientSeq(); initRoundActivePlayers(); });
 
 // close round
 closeRoundBtn.addEventListener("click", closeRound);
@@ -586,6 +659,13 @@ function initRoundActivePlayers(){
 
 // --- LOAD/START ---
 loadState();
+function showMessage(msg) {
+  const div = document.createElement("div");
+  div.className = "toast";
+  div.textContent = msg;
+  document.body.appendChild(div);
+  setTimeout(()=>div.remove(), 1800);
+}
 
 // if no saved state, ensure deck initialized
 function loadState(){
@@ -613,5 +693,3 @@ function loadState(){
   }
 }
 
-
-evaluateBestAction
