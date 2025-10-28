@@ -150,6 +150,8 @@ function updateRightSide(){
 
 // === AGGIUNGI CARTA (dalla UI) ===
 function addCard(value){
+  if (document.activeElement === cardInput) cardInput.blur(); // evita doppio input su iPad
+
   value = value.toUpperCase();
   if (!cardValues.includes(value)) return alert("Carta non valida!");
   if (deckState[value] <= 0) return alert("Tutte le carte di questo valore sono già uscite!");
@@ -476,22 +478,30 @@ function evaluateBestAction(playerCards, deckStateArg, dealerUpcard, canDouble=t
     if (isPair) {
       const tot = deckTotal(deckStateArg);
       if (tot > 1) {
-        let acc = 0;
-        // approximate by drawing independently for the two split hands
-        for (const card1 of Object.keys(deckStateArg)) {
-          const cnt1 = deckStateArg[card1]; if (cnt1 <= 0) continue;
-          const p1 = cnt1 / tot;
-          deckStateArg[card1]--;
-          for (const card2 of Object.keys(deckStateArg)) {
-            const cnt2 = deckStateArg[card2]; if (cnt2 <= 0) continue;
-            const p2 = cnt2 / (tot-1);
-            const ev1 = evaluateBestAction([playerCards[0], card1], deckStateArg, dealerUpcard, false, false, true).ev;
-            const ev2 = evaluateBestAction([playerCards[1], card2], deckStateArg, dealerUpcard, false, false, true).ev;
-            acc += p1 * p2 * ((ev1 + ev2) / 2);
-          }
-          deckStateArg[card1]++;
+              let acc = 0;
+      // calcola lo split più realistico in base alla distribuzione residua del mazzo
+      for (const card1 of Object.keys(deckStateArg)) {
+        const cnt1 = deckStateArg[card1];
+        if (cnt1 <= 0) continue;
+        const p1 = cnt1 / tot;
+        deckStateArg[card1]--;
+
+        for (const card2 of Object.keys(deckStateArg)) {
+          const cnt2 = deckStateArg[card2];
+          if (cnt2 <= 0) continue;
+          const p2 = cnt2 / (tot - 1);
+
+          // Calcolo EV per entrambe le mani dopo lo split
+          const ev1 = evaluateBestAction([a, card1], deckStateArg, dealerUpcard, true, false, true).ev;
+          const ev2 = evaluateBestAction([b, card2], deckStateArg, dealerUpcard, true, false, true).ev;
+
+          acc += p1 * p2 * ((ev1 + ev2) / 2);
         }
-        split_ev = acc;
+
+        deckStateArg[card1]++;
+      }
+      split_ev = acc;
+
       }
     }
   }
@@ -539,9 +549,21 @@ playerBoxes.forEach((boxEl, idx) => {
 });
 
 // left controls
-addBtn.addEventListener("click", ()=>{ const val = cardInput.value.trim(); if(val){ addCard(val); cardInput.value = ""; }});
+// Supporto iPad + Touch + Input sicuro
+gridButtons.forEach(btn => {
+  btn.addEventListener("pointerdown", () => addCard(btn.textContent.trim()));
+});
+addBtn.addEventListener("pointerdown", () => {
+  const val = cardInput.value.trim().toUpperCase();
+  if (val && cardValues.includes(val)) {
+    addCard(val);
+    cardInput.value = "";
+  } else if (val) {
+    alert("Carta non valida!");
+  }
+});
+
 cardInput.addEventListener("keypress", e=>{ if (e.key === "Enter") addBtn.click(); });
-gridButtons.forEach(btn => btn.addEventListener("click", ()=> addCard(btn.textContent)));
 undoBtn.addEventListener("click", ()=> undoCard());
 resetBtn.addEventListener("click", ()=> { if(confirm("Vuoi resettare la partita?")) initDeck(); });
 saveBtn.addEventListener("click", saveState);
@@ -590,3 +612,6 @@ function loadState(){
     initDeck();
   }
 }
+
+
+evaluateBestAction
