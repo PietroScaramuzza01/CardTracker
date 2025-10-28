@@ -540,6 +540,19 @@ function evaluateBestAction(playerCards, deckStateArg, dealerUpcard, canDouble=t
 
 // === API helper: computeSuggestionForBox(boxIndex) ===
 // === API helper: computeSuggestionForBox(boxIndex) — versione sicura ===
+function practicalSuggestion(evResult) {
+  if (!evResult || !evResult.action || isNaN(evResult.ev)) return "—";
+
+  const EV_THRESHOLD = 0.5; // soglia minima per considerare la mossa significativa
+
+  // Se EV negativo o molto basso → ignoriamo la mossa
+  if (evResult.ev < EV_THRESHOLD) return "Follow Base"; 
+
+  // Altrimenti restituiamo l'azione consigliata
+  return evResult.action;
+}
+
+
 function computeSuggestionForBox(boxIndex) {
   const box = boxes[boxIndex];
   if (!box || !box.active || !box.owner) return null;
@@ -547,19 +560,23 @@ function computeSuggestionForBox(boxIndex) {
   // Se il dealer non è ancora definito, non possiamo calcolare un suggerimento.
   if (!dealerCard || dealerCard === "—" || dealerCard === null) {
     console.warn(`computeSuggestionForBox: dealerCard non definito, skip calcolo per box ${boxIndex+1}`);
-    return { action: "—", ev: 0 };
+    return { action: "—", ev: 0, trueCount: 0 };
   }
 
-  // Se la mano è vuota o incompleta (meno di 2 carte all’inizio), evitiamo di calcolare
+  // Se la mano è vuota o incompleta (meno di 1 carta), evitiamo di calcolare
   if (!box.cards || box.cards.length === 0) {
-    return { action: "—", ev: 0 };
+    return { action: "—", ev: 0, trueCount: 0 };
   }
 
   try {
     const decksRemaining = remainingCards / 52;
     const tc = decksRemaining > 0 ? runningCount / decksRemaining : 0;
     const deckClone = cloneDeck(deckState);
-    const res = evaluateBestAction(box.cards.slice(), deckClone, dealerCard, true, true, false);
+
+    // Double consentito solo sulle prime 2 carte
+    const canDouble = box.cards.length === 2;
+
+    const res = evaluateBestAction(box.cards.slice(), deckClone, dealerCard, canDouble, true, false);
 
     // Difesa finale: se la funzione EV ritorna NaN o valore assurdo
     if (!res || !res.action || isNaN(res.ev)) {
@@ -570,9 +587,10 @@ function computeSuggestionForBox(boxIndex) {
     return { action: res.action, ev: res.ev, trueCount: tc };
   } catch (err) {
     console.error("computeSuggestionForBox: errore nel calcolo EV", err);
-    return { action: "—", ev: 0 };
+    return { action: "—", ev: 0, trueCount: 0 };
   }
 }
+
 
 
 // =================== EVENT LISTENERS ===================
