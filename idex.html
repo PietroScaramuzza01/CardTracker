@@ -19,6 +19,7 @@
         <div><span>Carte rimanenti:</span><strong id="remaining-cards">97</strong></div>
         <div><span>Conteggio:</span><strong id="running-count">+3</strong></div>
         <div><span>True Count:</span><strong id="true-count">0</strong></div>
+        <div><span>Ultima carta inserita:</span><strong id="last-card">NA</strong></div>
       </div>
 
       <div class="input-row">
@@ -41,8 +42,10 @@
   <button>J</button>
   <button>Q</button>
   <button>K</button>
+  <br>
+  
 </div>
-
+<button class="grid grid-cols-5 gap-3 text-lg mt-4" id="undo">Undo</button>
 
       <h2>Stato del mazzo</h2>
       <table>
@@ -62,15 +65,16 @@
       </table>
 
       <div class="actions">
-        <button id="undo">Undo</button>
+       
         <button id="reset">Reset</button>
         <button id="save">Salva stato</button>
       </div>
 
       <div class="summary">
-  <p>Ultima carta inserita: <strong id="last-card">10</strong></p>
+  
   <p>Carte alte rimanenti: <strong id="high-cards">28</strong></p>
   <p>Carte basse: <strong id="low-cards">34</strong></p>
+  <p>J.V. 0.2</p>
 </div>
 
     </div>
@@ -171,6 +175,7 @@
 
     </div>
   </div>
+  
 
   <script src="js.js"></script>
 </body>

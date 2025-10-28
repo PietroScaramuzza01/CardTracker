@@ -1,5 +1,5 @@
 // ===== Card Tracker + Player Boxes + EV engine =====
-
+const Versione = "J.V. 0.3";
 // --- COSTANTI E HELPERS ---
 const cardValues = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
 const hiLoValues = {"2":1,"3":1,"4":1,"5":1,"6":1,"7":0,"8":0,"9":0,"10":-1,"J":-1,"Q":-1,"K":-1,"A":-1};
@@ -156,6 +156,9 @@ function addCard(value) {
     const box = boxes[nextCardBoxId - 1];
     box.cards.push(value);
 
+    // registra assegnazione per Undo
+    assignmentHistory.push({ card: value, recipient: nextCardBoxId - 1, phase: "manual" });
+
     // Calcola suggerimento
     const suggestionResult = computeSuggestionForBox(nextCardBoxId - 1);
     box.suggestion = suggestionResult?.action || "—";
@@ -172,50 +175,62 @@ function addCard(value) {
 
 
 
+
 // === assegna NEXT initial card seguendo sequenza cyclic player..dealer .. player.. fino a completamento ===
 // funzione che assegna automaticamente le carte iniziali nell'ordine corretto
 function assignNextInitialCard(card) {
   const activeBoxes = boxes.filter(b => b.active);
+  
   for (let b of activeBoxes) {
     if (b.cards.length === 0) {
       b.cards.push(card);
 
+      // registra assegnazione per Undo
+      const idx = boxes.indexOf(b);
+      assignmentHistory.push({ card: card, recipient: idx, phase: "initial" });
+
       // LOG e calcolo suggerimento se box è di tua proprietà
       if (b.owner) {
-  const idx = boxes.indexOf(b);
-  const suggestionResult = computeSuggestionForBox(idx) || {};
-  b.suggestion = suggestionResult.action || "—";
-  console.log(
-    `Box ${idx + 1} (Initial) - Carte: [${b.cards.join(", ")}], Suggerimento: ${b.suggestion}, EV: ${((suggestionResult.ev ?? 0).toFixed(3))}, True Count: ${((suggestionResult.trueCount ?? 0).toFixed(2))}`
-  );
-}
-
+        const suggestionResult = computeSuggestionForBox(idx) || {};
+        b.suggestion = suggestionResult.action || "—";
+        console.log(
+          `Box ${idx + 1} (Initial) - Carte: [${b.cards.join(", ")}], Suggerimento: ${b.suggestion}, EV: ${((suggestionResult.ev ?? 0).toFixed(3))}, True Count: ${((suggestionResult.trueCount ?? 0).toFixed(2))}`
+        );
+      }
 
       return checkInitialDistributionComplete();
     }
   }
 
+  // assegna al dealer se non ancora presente
   if (!dealerCard) {
     dealerCard = card;
+    assignmentHistory.push({ card: card, recipient: "DEALER", phase: "initial" });
     return checkInitialDistributionComplete();
   }
 
+  // seconda carta dei box
   for (let b of activeBoxes) {
     if (b.cards.length < 2) {
       b.cards.push(card);
 
+      const idx = boxes.indexOf(b);
+      assignmentHistory.push({ card: card, recipient: idx, phase: "initial" });
+
       // LOG e calcolo suggerimento se box è di tua proprietà
       if (b.owner) {
-        const idx = boxes.indexOf(b);
         const suggestionResult = computeSuggestionForBox(idx);
         b.suggestion = suggestionResult?.action || "—";
-        console.log(`Box ${idx + 1} (Initial) - Carte: [${b.cards.join(", ")}], Suggerimento: ${b.suggestion}, EV: ${suggestionResult.ev.toFixed(3)}, True Count: ${suggestionResult.trueCount.toFixed(2)}`);
+        console.log(
+          `Box ${idx + 1} (Initial) - Carte: [${b.cards.join(", ")}], Suggerimento: ${b.suggestion}, EV: ${suggestionResult.ev.toFixed(3)}, True Count: ${suggestionResult.trueCount.toFixed(2)}`
+        );
       }
 
       return checkInitialDistributionComplete();
     }
   }
 }
+
 
 
 function checkInitialDistributionComplete() {
@@ -284,26 +299,9 @@ function closeRound(){
 }
 
 // --- UNDO ---
-function undoCard(){
-  if (!drawnCards.length) return showMessage("Nessuna carta da annullare");
-  const last = drawnCards.pop();
-  deckState[last] = (deckState[last] || 0) + 1;
-  remainingCards++;
-  runningCount -= hiLoValues[last] || 0;
 
-  const lastAssign = assignmentHistory.pop();
-  if (lastAssign) {
-    if (lastAssign.recipient === "DEALER") dealerCard = null;
-    else if (typeof lastAssign.recipient === "number") {
-      const b = boxes[lastAssign.recipient];
-      const idx = b.cards.lastIndexOf(last);
-      if (idx !== -1) b.cards.splice(idx, 1);
-    }
-    if (lastAssign.phase === "initial") initialDistributionComplete = false;
-  }
-  lastCardEl.textContent = drawnCards.at(-1) || "—";
-  updateUI(); updateRightSide();
-}
+
+
 
 
 // --- SAVE / LOAD ---
@@ -636,24 +634,65 @@ playerBoxes.forEach((boxEl, idx) => {
     });
   }
 });
+function undoCard(){
+  addBtn.disabled = true;
+  if (!drawnCards.length) return showMessage("Nessuna carta da annullare");
 
+  const last = drawnCards.pop();
+  deckState[last] = (deckState[last] || 0) + 1;
+  remainingCards++;
+  runningCount -= hiLoValues[last] || 0;
 
+  const lastAssign = assignmentHistory.pop();
+  if (lastAssign) {
+    if (lastAssign.recipient === "DEALER") {
+      dealerCard = null;
+    } else if (typeof lastAssign.recipient === "number") {
+      const b = boxes[lastAssign.recipient];
+      const idx = b.cards.lastIndexOf(last);
+      if (idx !== -1) b.cards.splice(idx, 1);
+    }
+    if (lastAssign.phase === "initial") initialDistributionComplete = false;
+  }
 
+  // Aggiorna input per prevenire alert
+  cardInput.value = "";
+
+  // aggiorna l’ultimo valore visualizzato
+  lastCardEl.textContent = drawnCards.at(-1) || "—";
+ cardInput.value = "";
+  lastCardEl.textContent = drawnCards.at(-1) || "—";
+  updateUI();
+  updateRightSide();
+  setTimeout(()=> addBtn.disabled = false, 50); // riattiva subito dopo
+}
+
+function showMessage(msg) {
+  const div = document.createElement("div");
+  div.className = "toast";
+  div.textContent = msg;
+  document.body.appendChild(div);
+  setTimeout(()=>div.remove(), 1800);
+}
 
 // left controls
 // Supporto iPad + Touch + Input sicuro
 gridButtons.forEach(btn => {
   btn.addEventListener("pointerdown", () => addCard(btn.textContent.trim()));
 });
-addBtn.addEventListener("pointerdown", () => {
+  addBtn.addEventListener("pointerdown", () => {
   const val = cardInput.value.trim().toUpperCase();
-  if (val && cardValues.includes(val)) {
+
+  if (!val) return; // niente alert se input vuoto
+
+  if (cardValues.includes(val)) {
     addCard(val);
-    cardInput.value = "";
-  } else if (val) {
-    alert("Carta non valida!");
+    cardInput.value = ""; // svuota dopo aver aggiunto
+  } else {
+    showMessage("Carta non valida!"); // usa toast invece di alert per non interrompere
   }
 });
+
 
 cardInput.addEventListener("keypress", e=>{ if (e.key === "Enter") addBtn.click(); });
 undoBtn.addEventListener("click", ()=> undoCard());
@@ -677,13 +716,7 @@ function initRoundActivePlayers(){
 
 // --- LOAD/START ---
 loadState();
-function showMessage(msg) {
-  const div = document.createElement("div");
-  div.className = "toast";
-  div.textContent = msg;
-  document.body.appendChild(div);
-  setTimeout(()=>div.remove(), 1800);
-}
+
 
 // if no saved state, ensure deck initialized
 function loadState(){
@@ -711,3 +744,5 @@ function loadState(){
   }
 }
 
+
+alert
