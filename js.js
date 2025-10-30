@@ -180,23 +180,25 @@ function updateUI() {
 // --- AGGIORNA DESTRA ---
 function updateRightSide() {
   dealerCardEl.textContent = dealerCard||"—";
-  boxes.forEach((b,idx)=>{
-    const boxEl=playerBoxes[idx];
-    if (!boxEl) return;
-    const cardDisplay = boxEl.querySelector(".card-display");
-    if (cardDisplay) cardDisplay.textContent = b.cards.length?b.cards.join(", "):"—";
-    // dentro updateRightSide():
-const suggestionEl = boxEl.querySelector(".suggestion");
-if (suggestionEl) {
-  // Aggiorna solo l'azione consigliata
-  suggestionEl.querySelector('.action')?.textContent = b.suggestion || "—";
-  // Lascia intatti gli span con le percentuali
-}
+  boxes.forEach((b, idx) => {
+  const boxEl = playerBoxes[idx];
+  if (!boxEl) return;
 
-    boxEl.classList.toggle("owner",b.owner);
-    const ownerCb = boxEl.querySelector(".owner-check");
-    if (ownerCb) ownerCb.checked = !!b.owner;
-  });
+  // Aggiorna carte
+  const cardDisplay = boxEl.querySelector(".card-display");
+  if (cardDisplay) cardDisplay.textContent = b.cards.length ? b.cards.join(", ") : "—";
+
+  // Aggiorna solo l'azione senza toccare le percentuali
+  const suggestionEl = boxEl.querySelector(".suggestion .action");
+  if (suggestionEl) suggestionEl.textContent = b.suggestion || "—";
+
+  boxEl.classList.toggle("active", b.active);
+  boxEl.classList.toggle("owner", b.owner);
+
+  const ownerCb = boxEl.querySelector(".owner-check");
+  if (ownerCb) ownerCb.checked = !!b.owner;
+});
+
 }
 
 // --- AGGIUNGI CARTA ---
