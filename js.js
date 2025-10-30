@@ -185,9 +185,14 @@ function updateRightSide() {
     if (!boxEl) return;
     const cardDisplay = boxEl.querySelector(".card-display");
     if (cardDisplay) cardDisplay.textContent = b.cards.length?b.cards.join(", "):"—";
-    const suggestionEl = boxEl.querySelector(".suggestion");
-    if (suggestionEl) suggestionEl.textContent = b.suggestion||"—";
-    boxEl.classList.toggle("active",b.active);
+    // dentro updateRightSide():
+const suggestionEl = boxEl.querySelector(".suggestion");
+if (suggestionEl) {
+  // Aggiorna solo l'azione consigliata
+  suggestionEl.querySelector('.action')?.textContent = b.suggestion || "—";
+  // Lascia intatti gli span con le percentuali
+}
+
     boxEl.classList.toggle("owner",b.owner);
     const ownerCb = boxEl.querySelector(".owner-check");
     if (ownerCb) ownerCb.checked = !!b.owner;
@@ -899,7 +904,7 @@ for (let i = 1; i <= 13; i++) {
 worker.postMessage({ hand: playerHand, deck, simulations: 5000 });
 
 // Aggiornamento UI al ritorno dei dati
-worker.onmessage = (event) => {
+wworker.onmessage = (event) => {
   const data = event.data;
 
   // Aggiorna il div generico dei risultati (se serve)
