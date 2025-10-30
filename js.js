@@ -955,7 +955,7 @@ for (let i = 1; i <= 13; i++) {
 worker.postMessage({ hand: playerHand, deck, simulations: 5000 });
 
 // Aggiornamento UI al ritorno dei dati
-wworker.onmessage = (event) => {
+worker.onmessage = (event) => {
   const data = event.data;
 
   // Aggiorna il div generico dei risultati (se serve)
