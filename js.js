@@ -102,6 +102,14 @@ function createExportImportUI() {
     importFileInput.value = ""; // reset
   });
 }
+document.querySelectorAll('.update-suggestion').forEach((btn, index) => {
+  btn.addEventListener('click', () => {
+    const playerBox = btn.closest('.player-box');
+    const hand = getPlayerHand(index + 1); // funzione che ritorna le carte del giocatore
+    updateProbabilities(hand); // funzione che invia dati al Worker
+  });
+});
+
 
 // --- INITIALIZZAZIONE DECK STATE ---
 function initDeck(){
@@ -876,6 +884,38 @@ function showMessage(msg) {
   document.body.appendChild(div);
   setTimeout(()=>div.remove(), 1800);
 }
+
+
+// MONTECARLO
+const worker = new Worker('montecarloWorker.js');
+
+const playerHand = { cards: [{ value: 8 }, { value: 8 }], value: 16 };
+let deck = [];
+for (let i = 1; i <= 13; i++) {
+  for (let s = 0; s < 4; s++) deck.push({ value: i });
+}
+
+// Richiesta probabilità al Worker
+worker.postMessage({ hand: playerHand, deck, simulations: 5000 });
+
+// Aggiornamento UI al ritorno dei dati
+worker.onmessage = (event) => {
+  const resultsDiv = document.getElementById('results');
+  resultsDiv.innerHTML = JSON.stringify(event.data, null, 2);
+};
+
+worker.onmessage = (event) => {
+  const data = event.data; // { hit: x, stand: y, double: z, split: w }
+  const playerBox = document.querySelector(`#player-${data.player}`);
+  if (!playerBox) return;
+
+  playerBox.querySelector('.hit-percent').textContent = `${data.hit}%`;
+  playerBox.querySelector('.stand-percent').textContent = `${data.stand}%`;
+  playerBox.querySelector('.double-percent').textContent = `${data.double}%`;
+  playerBox.querySelector('.split-percent').textContent = `${data.split}%`;
+};
+
+
 
 // left controls
 // Supporto iPad + Touch + Input sicuro
