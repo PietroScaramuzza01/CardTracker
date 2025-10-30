@@ -900,20 +900,33 @@ worker.postMessage({ hand: playerHand, deck, simulations: 5000 });
 
 // Aggiornamento UI al ritorno dei dati
 worker.onmessage = (event) => {
-  const resultsDiv = document.getElementById('results');
-  resultsDiv.innerHTML = JSON.stringify(event.data, null, 2);
-};
+  const data = event.data;
 
-worker.onmessage = (event) => {
-  const data = event.data; // { hit: x, stand: y, double: z, split: w }
+  // Aggiorna il div generico dei risultati (se serve)
+  const resultsDiv = document.getElementById('results');
+  if (resultsDiv) resultsDiv.innerHTML = JSON.stringify(data, null, 2);
+
+  // Aggiorna la UI dei player box
   const playerBox = document.querySelector(`#player-${data.player}`);
   if (!playerBox) return;
 
-  playerBox.querySelector('.hit-percent').textContent = `${data.hit}%`;
-  playerBox.querySelector('.stand-percent').textContent = `${data.stand}%`;
-  playerBox.querySelector('.double-percent').textContent = `${data.double}%`;
-  playerBox.querySelector('.split-percent').textContent = `${data.split}%`;
+  const hitEl = playerBox.querySelector('.hit-percent');
+  const standEl = playerBox.querySelector('.stand-percent');
+  const doubleEl = playerBox.querySelector('.double-percent');
+  const splitEl = playerBox.querySelector('.split-percent');
+
+  if (hitEl) hitEl.textContent = `${data.hit}%`;
+  if (standEl) standEl.textContent = `${data.stand}%`;
+  if (doubleEl) doubleEl.textContent = `${data.double}%`;
+  if (splitEl) splitEl.textContent = `${data.split}%`;
+
+  // Aggiorna anche il div .suggestion se vuoi mostrare l’azione migliore
+  const suggestionEl = playerBox.querySelector('.suggestion');
+  if (suggestionEl && data.bestAction) {
+    suggestionEl.textContent = data.bestAction;
+  }
 };
+
 
 
 
