@@ -179,27 +179,76 @@ function updateUI() {
 
 // --- AGGIORNA DESTRA ---
 function updateRightSide() {
-  dealerCardEl.textContent = dealerCard||"—";
+  dealerCardEl.textContent = dealerCard || "—";
+
   boxes.forEach((b, idx) => {
-  const boxEl = playerBoxes[idx];
-  if (!boxEl) return;
+    const boxEl = playerBoxes[idx];
+    if (!boxEl) return;
 
-  // Aggiorna carte
-  const cardDisplay = boxEl.querySelector(".card-display");
-  if (cardDisplay) cardDisplay.textContent = b.cards.length ? b.cards.join(", ") : "—";
+    // aggiorna visualizzazione carte
+    const cardDisplay = boxEl.querySelector(".card-display");
+    if (cardDisplay) cardDisplay.textContent = b.cards.length ? b.cards.join(", ") : "—";
 
-  // Aggiorna solo l'azione senza toccare le percentuali
-  const suggestionEl = boxEl.querySelector(".suggestion .action");
-  if (suggestionEl) suggestionEl.textContent = b.suggestion || "—";
+    // aggiorna suggerimento senza sovrascrivere il contenitore
+    const suggestionEl = boxEl.querySelector(".suggestion");
+    if (suggestionEl) {
+      // assicurati che ci siano gli span
+      let actionEl = suggestionEl.querySelector('.action');
+      if (!actionEl) {
+        actionEl = document.createElement('span');
+        actionEl.className = 'action';
+        suggestionEl.appendChild(actionEl);
+      }
 
-  boxEl.classList.toggle("active", b.active);
-  boxEl.classList.toggle("owner", b.owner);
+      let hitEl = suggestionEl.querySelector('.hit-percent');
+      if (!hitEl) {
+        hitEl = document.createElement('span');
+        hitEl.className = 'hit-percent';
+        hitEl.style.marginLeft = '6px';
+        suggestionEl.appendChild(hitEl);
+      }
 
-  const ownerCb = boxEl.querySelector(".owner-check");
-  if (ownerCb) ownerCb.checked = !!b.owner;
-});
+      let standEl = suggestionEl.querySelector('.stand-percent');
+      if (!standEl) {
+        standEl = document.createElement('span');
+        standEl.className = 'stand-percent';
+        standEl.style.marginLeft = '6px';
+        suggestionEl.appendChild(standEl);
+      }
 
+      let doubleEl = suggestionEl.querySelector('.double-percent');
+      if (!doubleEl) {
+        doubleEl = document.createElement('span');
+        doubleEl.className = 'double-percent';
+        doubleEl.style.marginLeft = '6px';
+        suggestionEl.appendChild(doubleEl);
+      }
+
+      let splitEl = suggestionEl.querySelector('.split-percent');
+      if (!splitEl) {
+        splitEl = document.createElement('span');
+        splitEl.className = 'split-percent';
+        splitEl.style.marginLeft = '6px';
+        suggestionEl.appendChild(splitEl);
+      }
+
+      // aggiorna contenuti
+      actionEl.textContent = b.suggestion?.action || "—";
+      hitEl.textContent = b.suggestion?.hit != null ? `Hit: ${b.suggestion.hit}%` : "";
+      standEl.textContent = b.suggestion?.stand != null ? `Stand: ${b.suggestion.stand}%` : "";
+      doubleEl.textContent = b.suggestion?.double != null ? `Double: ${b.suggestion.double}%` : "";
+      splitEl.textContent = b.suggestion?.split != null ? `Split: ${b.suggestion.split}%` : "";
+    }
+
+    // aggiorna classi box
+    boxEl.classList.toggle("active", b.active);
+    boxEl.classList.toggle("owner", b.owner);
+
+    const ownerCb = boxEl.querySelector(".owner-check");
+    if (ownerCb) ownerCb.checked = !!b.owner;
+  });
 }
+
 
 // --- AGGIUNGI CARTA ---
 function addCard(value) {
