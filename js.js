@@ -1,3 +1,12 @@
+window.addEventListener("load", () => {
+  // Cancella eventuali salvataggi automatici
+  localStorage.removeItem("cardTrackerState");
+
+  // Reinizializza tutto
+  if (typeof resetGame === "function") resetGame();
+  console.log("🔄 Stato azzerato all'avvio");
+});
+
 // ===== Card Tracker + Player Boxes + EV engine =====
 const Versione = "J.V. 0.3";
 // --- COSTANTI E HELPERS ---
@@ -23,7 +32,6 @@ let deckState = {};  // { "A":n, "2":n, ... "K":n }
 // storico delle assegnazioni per gestire undo correttamente
 let assignmentHistory = []; // elementi: { card: "10", recipient: idx | "DEALER", phase: "initial"|"manual" }
 
-
 let boxes = Array.from({length:7},(_,i)=>({
   id: i+1,
   active: false,
@@ -33,7 +41,6 @@ let boxes = Array.from({length:7},(_,i)=>({
   tick: false
 }));
 let dealerCard = null;
-
 
 let initialDistributionComplete = false;
 let nextInitialRecipientIndex = 0; // indice nella sequenza recipientSeq
@@ -53,13 +60,48 @@ const lowCardsEl = document.getElementById("low-cards");
 const tableBody = document.querySelector("table tbody");
 const cardInput = document.getElementById("card-input");
 const addBtn = document.getElementById("add-card");
-const gridButtons = document.querySelectorAll(".grid button");
+// NOTE: exclude #undo from gridButtons to avoid accidental calls
+const gridButtons = document.querySelectorAll(".grid button:not(#undo)");
 const undoBtn = document.getElementById("undo");
 const resetBtn = document.getElementById("reset");
 const saveBtn = document.getElementById("save");
 const dealerCardEl = document.getElementById("dealer-card");
 const playerBoxes = Array.from(document.querySelectorAll(".player-box"));
 const closeRoundBtn = document.getElementById("close-round");
+
+// We'll dynamically add export/import buttons next to saveBtn
+let exportBtn, importBtn, importFileInput;
+function createExportImportUI() {
+  if (!saveBtn) return;
+  const container = saveBtn.parentElement || saveBtn;
+  // avoid duplicate creation
+  if (document.getElementById("export-state")) return;
+
+  exportBtn = document.createElement("button");
+  exportBtn.id = "export-state";
+  exportBtn.textContent = "Esporta JSON";
+  exportBtn.style.marginLeft = "8px";
+  saveBtn.insertAdjacentElement("afterend", exportBtn);
+
+  importBtn = document.createElement("button");
+  importBtn.id = "import-state";
+  importBtn.textContent = "Importa JSON";
+  importBtn.style.marginLeft = "8px";
+  exportBtn.insertAdjacentElement("afterend", importBtn);
+
+  importFileInput = document.createElement("input");
+  importFileInput.type = "file";
+  importFileInput.accept = "application/json";
+  importFileInput.style.display = "none";
+  document.body.appendChild(importFileInput);
+
+  exportBtn.addEventListener("click", exportState);
+  importBtn.addEventListener("click", ()=> importFileInput.click());
+  importFileInput.addEventListener("change", (e)=> {
+    if (e.target.files && e.target.files[0]) importStateFile(e.target.files[0]);
+    importFileInput.value = ""; // reset
+  });
+}
 
 // --- INITIALIZZAZIONE DECK STATE ---
 function initDeck(){
@@ -80,14 +122,12 @@ function initDeck(){
   updateUI();
   updateRightSide();
 }
-
 // --- CREA SEQUENZA DI DISTRIBUZIONE (players 1..N, DEALER) ---
 function buildRecipientSeq(){
   recipientSeq = boxes.map((b,i) => b.active ? i : null).filter(i => i !== null);
   recipientSeq.push("DEALER");
   nextInitialRecipientIndex = 0;
 }
-
 
 // --- UPDATE UI SINISTRA ---
 function updateUI() {
@@ -121,6 +161,12 @@ function updateUI() {
     tr.innerHTML=`<td>${card}</td><td>${remaining}</td><td>${effect>0?"+"+effect:effect}</td>`;
     tableBody.appendChild(tr);
   });
+
+  // high/low counts (safe guard if deckState not ready)
+  const high = (deckState["10"]||0) + (deckState["J"]||0) + (deckState["Q"]||0) + (deckState["K"]||0) + (deckState["A"]||0);
+  const low = (deckState["2"]||0) + (deckState["3"]||0) + (deckState["4"]||0) + (deckState["5"]||0) + (deckState["6"]||0);
+  highCardsEl.textContent = high;
+  lowCardsEl.textContent = low;
 }
 
 // --- AGGIORNA DESTRA ---
@@ -128,21 +174,24 @@ function updateRightSide() {
   dealerCardEl.textContent = dealerCard||"—";
   boxes.forEach((b,idx)=>{
     const boxEl=playerBoxes[idx];
-    boxEl.querySelector(".card-display").textContent=b.cards.length?b.cards.join(", "):"—";
-    boxEl.querySelector(".suggestion").textContent=b.suggestion||"—";
+    if (!boxEl) return;
+    const cardDisplay = boxEl.querySelector(".card-display");
+    if (cardDisplay) cardDisplay.textContent = b.cards.length?b.cards.join(", "):"—";
+    const suggestionEl = boxEl.querySelector(".suggestion");
+    if (suggestionEl) suggestionEl.textContent = b.suggestion||"—";
     boxEl.classList.toggle("active",b.active);
     boxEl.classList.toggle("owner",b.owner);
-    boxEl.querySelector(".owner-check").checked=b.owner;
+    const ownerCb = boxEl.querySelector(".owner-check");
+    if (ownerCb) ownerCb.checked = !!b.owner;
   });
 }
 
 // --- AGGIUNGI CARTA ---
-
-
 function addCard(value) {
+  if (!value || typeof value !== "string") return;
   value = value.toUpperCase();
-  if (!cardValues.includes(value)) return alert("Carta non valida!");
-  if (deckState[value] <= 0) return alert("Tutte le carte di questo valore sono già uscite!");
+  if (!cardValues.includes(value)) { showMessage("Carta non valida!"); return; }
+  if (!deckState[value] || deckState[value] <= 0) { showMessage("Tutte le carte di questo valore sono già uscite!"); return; }
 
   deckState[value]--;
   remainingCards--;
@@ -160,11 +209,11 @@ function addCard(value) {
     assignmentHistory.push({ card: value, recipient: nextCardBoxId - 1, phase: "manual" });
 
     // Calcola suggerimento
-    const suggestionResult = computeSuggestionForBox(nextCardBoxId - 1);
+    const suggestionResult = computeSuggestionForBox(nextCardBoxId - 1) || {};
     box.suggestion = suggestionResult?.action || "—";
 
-    // LOG su console
-    console.log(`Box ${nextCardBoxId} - Carte: [${box.cards.join(", ")}], Suggerimento: ${box.suggestion}, EV: ${suggestionResult.ev.toFixed(3)}, True Count: ${suggestionResult.trueCount.toFixed(2)}`);
+    // LOG su console (safe formatting)
+    console.log(`Box ${nextCardBoxId} - Carte: [${box.cards.join(", ")}], Suggerimento: ${box.suggestion}, EV: ${typeof suggestionResult.ev === 'number' ? suggestionResult.ev.toFixed(3) : suggestionResult.ev}, True Count: ${typeof suggestionResult.trueCount === 'number' ? suggestionResult.trueCount.toFixed(2) : suggestionResult.trueCount}`);
 
     nextCardBoxId = null;
   }
@@ -172,10 +221,6 @@ function addCard(value) {
   updateUI();
   updateRightSide();
 }
-
-
-
-
 // === assegna NEXT initial card seguendo sequenza cyclic player..dealer .. player.. fino a completamento ===
 // funzione che assegna automaticamente le carte iniziali nell'ordine corretto
 function assignNextInitialCard(card) {
@@ -194,7 +239,7 @@ function assignNextInitialCard(card) {
         const suggestionResult = computeSuggestionForBox(idx) || {};
         b.suggestion = suggestionResult.action || "—";
         console.log(
-          `Box ${idx + 1} (Initial) - Carte: [${b.cards.join(", ")}], Suggerimento: ${b.suggestion}, EV: ${((suggestionResult.ev ?? 0).toFixed(3))}, True Count: ${((suggestionResult.trueCount ?? 0).toFixed(2))}`
+          `Box ${idx + 1} (Initial) - Carte: [${b.cards.join(", ")}], Suggerimento: ${b.suggestion}, EV: ${typeof suggestionResult.ev === 'number' ? suggestionResult.ev.toFixed(3) : suggestionResult.ev}, True Count: ${typeof suggestionResult.trueCount === 'number' ? suggestionResult.trueCount.toFixed(2) : suggestionResult.trueCount}`
         );
       }
 
@@ -219,19 +264,20 @@ function assignNextInitialCard(card) {
 
       // LOG e calcolo suggerimento se box è di tua proprietà
       if (b.owner) {
-        const suggestionResult = computeSuggestionForBox(idx);
-        b.suggestion = suggestionResult?.action || "—";
+        const suggestionResult = computeSuggestionForBox(idx) || {};
+        b.suggestion = suggestionResult.action || "—";
         console.log(
-          `Box ${idx + 1} (Initial) - Carte: [${b.cards.join(", ")}], Suggerimento: ${b.suggestion}, EV: ${suggestionResult.ev.toFixed(3)}, True Count: ${suggestionResult.trueCount.toFixed(2)}`
+          `Box ${idx + 1} (Initial) - Carte: [${b.cards.join(", ")}], Suggerimento: ${b.suggestion}, EV: ${typeof suggestionResult.ev === 'number' ? suggestionResult.ev.toFixed(3) : suggestionResult.ev}, True Count: ${typeof suggestionResult.trueCount === 'number' ? suggestionResult.trueCount.toFixed(2) : suggestionResult.trueCount}`
         );
       }
 
       return checkInitialDistributionComplete();
     }
   }
+
+  // Se arriva qui, non ci sono destinatari (safety)
+  console.warn("assignNextInitialCard: no recipient found for", card);
 }
-
-
 
 function checkInitialDistributionComplete() {
   const activeBoxes = boxes.filter(b => b.active);
@@ -240,7 +286,8 @@ function checkInitialDistributionComplete() {
     initialDistributionComplete = true;
   }
 }
-// --- DISTRIBUZIONE INITIAL CARDS ---
+
+// --- DISTRIBUZIONE INITIAL CARDS (utility) ---
 function drawInitialCards() {
   const activeBoxes = boxes.filter(b=>b.active);
   if(!activeBoxes.length) return;
@@ -261,6 +308,20 @@ function drawInitialCards() {
   }
 }
 
+// EV ENGINE and evaluateBestAction ... (unchanged)
+// For brevity in this message I keep the EV engine code identical to your previous working version.
+// Paste your existing dealerFinalProbabilities / standEV / evaluateBestAction / computeSuggestionForBox here.
+// (Keep the same functions you already had — ensure they are present in the file)
+
+/// --- placeholder: KEEP your existing EV engine and computeSuggestionForBox functions here ---
+/// (Do not remove them; they are required. In the file you should include the full implementations.)
+
+// function dealerFinalProbabilities(...) { ... }
+// function standEV(...) { ... }
+// function evaluateBestAction(...) { ... }
+// function computeSuggestionForBox(...) { ... }
+
+// --- UPDATE SUGGESTIONS helper ---
 function updateAllSuggestions() {
   if (!dealerCard) return; // sicurezza
   boxes.forEach((b, idx) => {
@@ -272,23 +333,6 @@ function updateAllSuggestions() {
   updateRightSide();
 }
 
-
-
-
-// === CLOSE ROUND ===
-function closeRound(){
-  boxes.forEach(b => { b.cards = []; b.suggestion = null; b.tick = false; });
-  dealerCard = null;
-  initialDistributionComplete = false;
-  nextInitialRecipientIndex = 0;
-  buildRecipientSeq();
-  // riapri round con active count
-  const activeCount = parseInt(activePlayersInput.value) || 5;
-  boxes.forEach((b, idx) => b.active = idx < activeCount);
-  updateRightSide();
-}
-
-// --- CLOSE ROUND ---
 function closeRound(){
   boxes.forEach(b => { b.cards = []; b.suggestion = null; b.tick = false; });
   dealerCard = null;
@@ -299,16 +343,45 @@ function closeRound(){
 }
 
 // --- UNDO ---
+function undoCard(){
+  // disable add button briefly to avoid race
+  addBtn.disabled = true;
+  if (!drawnCards.length) {
+    showMessage("Nessuna carta da annullare");
+    setTimeout(()=> addBtn.disabled = false, 50);
+    return;
+  }
 
+  const last = drawnCards.pop();
+  deckState[last] = (deckState[last] || 0) + 1;
+  remainingCards++;
+  runningCount -= hiLoValues[last] || 0;
 
+  const lastAssign = assignmentHistory.pop();
+  if (lastAssign) {
+    if (lastAssign.recipient === "DEALER") {
+      dealerCard = null;
+    } else if (typeof lastAssign.recipient === "number") {
+      const b = boxes[lastAssign.recipient];
+      const idx = b.cards.lastIndexOf(last);
+      if (idx !== -1) b.cards.splice(idx, 1);
+    }
+    if (lastAssign.phase === "initial") initialDistributionComplete = false;
+  }
 
+  // aggiorna l’ultimo valore visualizzato (safe)
+  lastCardEl.textContent = drawnCards.length ? drawnCards[drawnCards.length-1] : "—";
 
+  updateUI();
+  updateRightSide();
+  setTimeout(()=> addBtn.disabled = false, 50); // riattiva subito dopo
+}
 
-// --- SAVE / LOAD ---
+// --- SAVE / LOAD / EXPORT / IMPORT ---
 function saveState(){
   const state = { numDecks, totalCards, remainingCards, runningCount, deckState, drawnCards, boxes, dealerCard, initialDistributionComplete };
   localStorage.setItem("cardTrackerState", JSON.stringify(state));
-  alert("Stato salvato ✅");
+  showMessage("Stato salvato ✅");
 }
 function loadState(){
   const saved = localStorage.getItem("cardTrackerState");
@@ -434,10 +507,24 @@ function evaluateBestAction(playerCards, deckStateArg, dealerUpcard, canDouble=t
 
   // Stand EV
   const stand_ev = standEV(total, dealerDist);
+  // 🔧 AGGIUNGI subito dopo il calcolo di "total" in evaluateBestAction()
+const isSoft = (aces > 0 && total <= 21);
+const canRealisticallyDouble =
+  canDouble &&
+  !afterSplit &&
+  playerCards.length === 2 &&
+  (
+    // ✅ Double solo su 9, 10, 11 (hard)
+    (!isSoft && total >= 9 && total <= 11)
+    ||
+    // ✅ Double su A,2..A,7 (soft 13–18)
+    (isSoft && total >= 13 && total <= 18)
+  );
 
   // Double EV (draw one then stand) - payoff *2
   let double_ev = -Infinity;
-  if (canDouble && !afterSplit) {
+if (canRealisticallyDouble) {
+
     const tot = deckTotal(deckStateArg);
     if (tot > 0) {
       let acc = 0;
@@ -522,6 +609,8 @@ function evaluateBestAction(playerCards, deckStateArg, dealerUpcard, canDouble=t
       }
     }
   }
+  
+
 
   // choose best option
   const opts = [{action:"Stand", ev:stand_ev}, {action:"Hit", ev:hit_ev}];
@@ -536,32 +625,62 @@ function evaluateBestAction(playerCards, deckStateArg, dealerUpcard, canDouble=t
   return result;
 }
 
-// === API helper: computeSuggestionForBox(boxIndex) ===
-// === API helper: computeSuggestionForBox(boxIndex) — versione sicura ===
-function practicalSuggestion(evResult) {
+// === API helper: practicalSuggestion intelligente ===
+function practicalSuggestion(evResult, tc, playerCards, dealerCard) {
   if (!evResult || !evResult.action || isNaN(evResult.ev)) return "—";
 
-  const EV_THRESHOLD = 0.5; // soglia minima per considerare la mossa significativa
+  const EV_THRESHOLD = 0.25; // soglia minima per considerare la mossa "decente"
+  const HIGH_TC = 2.0;       // soglia conteggio alto
+  const LOW_TC = -2.0;       // soglia conteggio basso
 
-  // Se EV negativo o molto basso → ignoriamo la mossa
-  if (evResult.ev < EV_THRESHOLD) return "Follow Base"; 
+  const isSoft = playerCards.includes("A") && totalValue(playerCards) <= 21;
 
-  // Altrimenti restituiamo l'azione consigliata
+  // 1️⃣ EV troppo basso → non rischiare
+  if (evResult.ev < EV_THRESHOLD) return "Follow Base";
+
+  // 2️⃣ EV medio ma conteggio basso → comportamento prudente
+  if (tc < LOW_TC && (evResult.action === "Double" || evResult.action === "Split")) {
+    return "Follow Base";
+  }
+
+  // 3️⃣ EV buono e TC alto → enfatizza le mosse forti
+  if (tc > HIGH_TC && evResult.ev > 0.5) {
+    if (evResult.action === "Double" || evResult.action === "Split") {
+      return "Strategy Override";
+    }
+  }
+
+  // 4️⃣ Mani soft: prudenza se doppio borderline
+  if (isSoft && evResult.action === "Double" && evResult.ev < 0.7) {
+    return "Follow Base";
+  }
+
+  // 5️⃣ Default: restituisci l’azione
   return evResult.action;
 }
 
+// Helper: calcola il valore totale (con gestione Asso)
+function totalValue(cards) {
+  let total = 0, aces = 0;
+  for (const c of cards) {
+    if (c === "A") { total += 11; aces++; }
+    else if (TEN_VALUES.includes(c)) total += 10;
+    else total += parseInt(c);
+  }
+  while (total > 21 && aces > 0) { total -= 10; aces--; }
+  return total;
+}
 
+// === computeSuggestionForBox aggiornato ===
 function computeSuggestionForBox(boxIndex) {
   const box = boxes[boxIndex];
   if (!box || !box.active || !box.owner) return null;
 
-  // Se il dealer non è ancora definito, non possiamo calcolare un suggerimento.
   if (!dealerCard || dealerCard === "—" || dealerCard === null) {
     console.warn(`computeSuggestionForBox: dealerCard non definito, skip calcolo per box ${boxIndex+1}`);
     return { action: "—", ev: 0, trueCount: 0 };
   }
 
-  // Se la mano è vuota o incompleta (meno di 1 carta), evitiamo di calcolare
   if (!box.cards || box.cards.length === 0) {
     return { action: "—", ev: 0, trueCount: 0 };
   }
@@ -571,18 +690,18 @@ function computeSuggestionForBox(boxIndex) {
     const tc = decksRemaining > 0 ? runningCount / decksRemaining : 0;
     const deckClone = cloneDeck(deckState);
 
-    // Double consentito solo sulle prime 2 carte
     const canDouble = box.cards.length === 2;
-
     const res = evaluateBestAction(box.cards.slice(), deckClone, dealerCard, canDouble, true, false);
 
-    // Difesa finale: se la funzione EV ritorna NaN o valore assurdo
     if (!res || !res.action || isNaN(res.ev)) {
       console.warn("computeSuggestionForBox: risultato non valido", res);
       return { action: "—", ev: 0, trueCount: tc };
     }
 
-    return { action: res.action, ev: res.ev, trueCount: tc };
+    // Applica il ragionamento strategico
+    const smartAction = practicalSuggestion(res, tc, box.cards, dealerCard);
+
+    return { action: smartAction, ev: res.ev, trueCount: tc };
   } catch (err) {
     console.error("computeSuggestionForBox: errore nel calcolo EV", err);
     return { action: "—", ev: 0, trueCount: 0 };
@@ -590,6 +709,89 @@ function computeSuggestionForBox(boxIndex) {
 }
 
 
+
+
+// Export current state as JSON file
+function exportState() {
+  const state = { numDecks, totalCards, remainingCards, runningCount, deckState, drawnCards, boxes, dealerCard, initialDistributionComplete };
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  const fname = `cardtracker-state-${new Date().toISOString().replace(/[:.]/g,"-")}.json`;
+  a.download = fname;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  showMessage("Esportazione avviata ✅");
+}
+
+// Import state from a selected file (File object)
+function importStateFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const state = JSON.parse(e.target.result);
+      // Basic validation
+      if (!state || typeof state !== 'object') throw new Error("File non valido");
+      // Load
+      numDecks = state.numDecks || numDecks;
+      totalCards = state.totalCards || 52 * numDecks;
+      remainingCards = state.remainingCards || totalCards;
+      runningCount = state.runningCount || 0;
+      deckState = state.deckState || deckState;
+      drawnCards = state.drawnCards || [];
+      boxes = state.boxes || boxes;
+      dealerCard = state.dealerCard || null;
+      initialDistributionComplete = state.initialDistributionComplete || false;
+      deckInput.value = numDecks;
+      buildRecipientSeq();
+      updateUI();
+      updateRightSide();
+      lastCardEl.textContent = drawnCards.at(-1) || "—";
+      showMessage("Importazione completata ✅");
+    } catch (err) {
+      console.error("Import error", err);
+      showMessage("Errore importazione: file non valido");
+    }
+  };
+  reader.readAsText(file);
+}
+// --- Eventi Download / Upload ---
+const downloadBtn = document.getElementById("download-state");
+const uploadInput = document.getElementById("upload-state");
+
+if (downloadBtn) {
+  downloadBtn.addEventListener("click", exportState);
+}
+
+if (uploadInput) {
+  uploadInput.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    importStateFile(file);
+  });
+}
+
+
+// --- UI helpers ---
+function showMessage(msg) {
+  const div = document.createElement("div");
+  div.className = "toast";
+  div.textContent = msg;
+  // basic toast style inlined so it appears even without CSS
+  div.style.position = "fixed";
+  div.style.right = "16px";
+  div.style.bottom = "16px";
+  div.style.background = "rgba(0,0,0,0.8)";
+  div.style.color = "white";
+  div.style.padding = "8px 12px";
+  div.style.borderRadius = "6px";
+  div.style.zIndex = 9999;
+  document.body.appendChild(div);
+  setTimeout(()=>div.remove(), 1800);
+}
 
 // =================== EVENT LISTENERS ===================
 

@@ -326,3 +326,14 @@ th, td {
 #close-round:hover {
   background: #475569;      /* hover effetto leggermente più chiaro */
 }
+.upload-btn {
+  background: #007bff;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-left: 10px;
+}
+.upload-btn:hover {
+  background: #0056b3;
+}
