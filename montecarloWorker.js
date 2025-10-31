@@ -13,7 +13,9 @@ onmessage = function(e) {
     console.error("❌ Mancano dati per il calcolo:", e.data);
     return;
   }
-
+// Normalizzazione delle carte ricevute
+  const normalizedHand = hand.map(normalizeCard);
+  const normalizedDeck = deck.map(normalizeCard);
   const results = calculateProbabilities({ cards: hand, value: computeScore(hand) }, deck, simulations);
   results.player = player;
   postMessage(results);
@@ -31,8 +33,7 @@ function normalizeCard(card) {
   }
   return card;
 }
-const normalizedHand = hand.map(normalizeCard);
-const normalizedDeck = deck.map(normalizeCard);
+
 
 
 function calculateProbabilities(hand, deck, nSim = 5000) {

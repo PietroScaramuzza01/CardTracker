@@ -183,7 +183,8 @@ function updateRightSide() {
     return;
   }
 
-  const dealerCard = dealerCardEl.textContent.trim();
+  //const dealerCard = dealerCardEl.textContent.trim();
+  const currentDealerCard = dealerCardEl.textContent.trim();
   boxes.forEach((b, idx) => {
     const boxEl = playerBoxes[idx];
     if (!boxEl) return;
