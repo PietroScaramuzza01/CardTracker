@@ -937,35 +937,25 @@ for (let i = 1; i <= 13; i++) {
 }
 
 // Richiesta probabilità al Worker
-worker.postMessage({ hand: playerHand, deck, simulations: 5000 });
+worker.postMessage({
+  player: 1,
+  hand: [{ value: 10 }, { value: 6 }],
+  deck: fullDeck,
+  simulations: 3000
+});
+
 
 // Aggiornamento UI al ritorno dei dati
-worker.onmessage = (event) => {
-  const data = event.data;
-
-  // 🔍 Mostra tutto in console
-  console.log(`🎯 Montecarlo Player ${data.player} — Hit: ${data.hit}% | Stand: ${data.stand}% | Double: ${data.double}% | Split: ${data.split}% | Best: ${data.bestAction}`);
-
-  // Aggiorna il div dei risultati
-  const resultsDiv = document.getElementById('results');
-  if (resultsDiv) resultsDiv.innerHTML = JSON.stringify(data, null, 2);
-
-  // Aggiorna UI box corrispondente
+worker.onmessage = (e) => {
+  const data = e.data;
   const playerBox = document.querySelector(`#player-${data.player}`);
   if (!playerBox) return;
 
-  function setText(sel, txt) {
-    const el = playerBox.querySelector(sel);
-    if (el) el.textContent = txt;
-  }
-
-  setText('.hit-percent',  `Hit: ${data.hit}%`);
-  setText('.stand-percent',`Stand: ${data.stand}%`);
-  setText('.double-percent',`Double: ${data.double}%`);
-  setText('.split-percent', `Split: ${data.split}%`);
-
-  const suggestionEl = playerBox.querySelector('.suggestion .action');
-  if (suggestionEl) suggestionEl.textContent = data.bestAction || "—";
+  playerBox.querySelector('.hit-percent').textContent = `Hit: ${data.hit}%`;
+  playerBox.querySelector('.stand-percent').textContent = `Stand: ${data.stand}%`;
+  playerBox.querySelector('.double-percent').textContent = `Double: ${data.double}%`;
+  playerBox.querySelector('.split-percent').textContent = `Split: ${data.split}%`;
+  playerBox.querySelector('.action').textContent = data.bestAction.toUpperCase();
 };
 
 
