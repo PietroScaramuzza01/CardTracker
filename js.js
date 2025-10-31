@@ -973,8 +973,15 @@ function showMessage(msg) {
 const worker = new Worker('montecarloWorker.js');
 console.log('%c🧮 Monte Carlo Worker caricato correttamente!', 'color: limegreen; font-weight: bold;');
 
-// TEST iniziale
-worker.postMessage({ test: true });
+ 
+  // ignora i messaggi di test
+  if (data === 'ready' || data?.reply === 'Worker attivo e risponde!') {
+    console.log("✅ Worker collegato correttamente");
+    return;
+  }
+
+  // altrimenti mostra i risultati reali
+  console.log("📊 Risultati Monte Carlo:", data);
 
 // Esempio: simulazione test
 const playerHand = { cards: [{ value: 8 }, { value: 8 }], value: 16 };
