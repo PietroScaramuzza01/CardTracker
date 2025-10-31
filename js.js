@@ -173,16 +173,14 @@ function updateUI() {
 
 // --- AGGIORNA DESTRA ---
 function updateRightSide() {
-  
   const dealerCardEl = document.querySelector("#dealer-card");
-  if (!dealerCardEl) return;
+   if (!dealerCardEl) return;
 
- const dealerCard = dealerCardEl.textContent.trim() || "—";
-  dealerCardEl.textContent = dealerCard; // aggiorna il DOM
+  const dealerCard = dealerCardEl.textContent.trim() || "—";
+  dealerCardEl.textContent = dealerCard;
 
   if (dealerCard === "—") {
-    console.warn("dealerCard non definito, skip updateRightSide()");
-    return;
+    console.warn("dealerCard non definito, ma aggiorno comunque le box");
   }
 
  
