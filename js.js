@@ -68,8 +68,7 @@ const saveBtn = document.getElementById("save");
 const dealerCardEl = document.querySelector("#dealer-card");
 if (!dealerCardEl || dealerCardEl.textContent.trim() === "—") {
   console.warn(`computeSuggestionForBox: dealerCard non definito, skip calcolo per box ${playerIndex}`);
-  return;
-}
+  }
 const dealerCard = dealerCardEl.textContent.trim();
 
 const playerBoxes = Array.from(document.querySelectorAll(".player-box"));
