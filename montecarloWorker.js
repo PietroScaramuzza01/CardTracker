@@ -1,33 +1,64 @@
+console.log('🟢 Monte Carlo Worker inizializzato e in ascolto...');
+
 // Funzione principale
 onmessage = function(e) {
-  const { hand, deck, simulations } = e.data;
-  const results = calculateProbabilities(hand, deck, simulations);
+   if (e.data.test) {
+    console.log('✅ Worker test ricevuto, pronto a calcolare');
+    postMessage('ready');
+    return;
+  }
+  const { player, hand, deck, simulations } = e.data;
+  const results = calculateProbabilities({ cards: hand, value: computeScore(hand) }, deck, simulations);
+  results.player = player;
   postMessage(results);
 }
 
 // ================================
 // MONTE CARLO FUNCTIONS
 // ================================
+
+function normalizeCard(card) {
+  if (typeof card === 'string') {
+    const map = { A: 1, J: 11, Q: 12, K: 13 };
+    const val = map[card.toUpperCase()] || parseInt(card);
+    return { value: val };
+  }
+  return card;
+}
+const normalizedHand = hand.map(normalizeCard);
+const normalizedDeck = deck.map(normalizeCard);
+
+
 function calculateProbabilities(hand, deck, nSim = 5000) {
   const results = { hit: 0, stand: 0, double: 0, split: 0 };
 
-  const canHit = hand.value < 21;
-  const canDouble = hand.cards.length === 2;
-  const canSplit = hand.cards.length === 2 && (hand.cards[0].value === hand.cards[1].value || hand.cards[0].value === 10);
+  const normalizedHand = hand.map(normalizeCard);
+  const normalizedDeck = deck.map(normalizeCard);
+
+  const playerValue = computeScore(normalizedHand);
+  const canHit = playerValue < 21;
+  const canDouble = normalizedHand.length === 2;
+  const canSplit =
+    normalizedHand.length === 2 &&
+    (normalizedHand[0].value === normalizedHand[1].value ||
+      (normalizedHand[0].value >= 10 && normalizedHand[1].value >= 10));
 
   for (let i = 0; i < nSim; i++) {
-    if (canHit) results.hit += simulateMove([...hand.cards], [...deck], 'hit');
-    results.stand += simulateMove([...hand.cards], [...deck], 'stand');
-    if (canDouble) results.double += simulateMove([...hand.cards], [...deck], 'double');
-    if (canSplit) results.split += simulateMove([...hand.cards], [...deck], 'split');
+    if (canHit) results.hit += simulateMove([...normalizedHand], [...normalizedDeck], "hit");
+    results.stand += simulateMove([...normalizedHand], [...normalizedDeck], "stand");
+    if (canDouble) results.double += simulateMove([...normalizedHand], [...normalizedDeck], "double");
+    if (canSplit) results.split += simulateMove([...normalizedHand], [...normalizedDeck], "split");
   }
 
   for (let move in results) {
-    results[move] = ((results[move] / nSim) * 100).toFixed(1) + '%';
+    results[move] = ((results[move] / nSim) * 100).toFixed(1);
   }
 
-  return results;
+  // Best move
+  const bestAction = Object.entries(results).sort((a, b) => b[1] - a[1])[0][0];
+  return { ...results, bestAction };
 }
+
 
 function simulateMove(cards, deck, move) {
   let playerCards = [...cards];

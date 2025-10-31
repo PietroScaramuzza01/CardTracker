@@ -40,7 +40,7 @@ let boxes = Array.from({length:7},(_,i)=>({
   suggestion: null,
   tick: false
 }));
-let dealerCard = null;
+
 
 let initialDistributionComplete = false;
 let nextInitialRecipientIndex = 0; // indice nella sequenza recipientSeq
@@ -65,7 +65,13 @@ const gridButtons = document.querySelectorAll(".grid button:not(#undo)");
 const undoBtn = document.getElementById("undo");
 const resetBtn = document.getElementById("reset");
 const saveBtn = document.getElementById("save");
-const dealerCardEl = document.getElementById("dealer-card");
+const dealerCardEl = document.querySelector("#dealer-card");
+if (!dealerCardEl || dealerCardEl.textContent.trim() === "—") {
+  console.warn(`computeSuggestionForBox: dealerCard non definito, skip calcolo per box ${playerIndex}`);
+  return;
+}
+const dealerCard = dealerCardEl.textContent.trim();
+
 const playerBoxes = Array.from(document.querySelectorAll(".player-box"));
 const closeRoundBtn = document.getElementById("close-round");
 
@@ -928,35 +934,48 @@ function showMessage(msg) {
 
 
 // MONTECARLO
+// MONTECARLO INIT
 const worker = new Worker('montecarloWorker.js');
+console.log('%c🧮 Monte Carlo Worker caricato correttamente!', 'color: limegreen; font-weight: bold;');
 
+// TEST iniziale
+worker.postMessage({ test: true });
+
+// Esempio: simulazione test
 const playerHand = { cards: [{ value: 8 }, { value: 8 }], value: 16 };
-let deck = [];
+let fullDeck = [];
 for (let i = 1; i <= 13; i++) {
-  for (let s = 0; s < 4; s++) deck.push({ value: i });
+  for (let s = 0; s < 4; s++) fullDeck.push({ value: i });
 }
 
-// Richiesta probabilità al Worker
 worker.postMessage({
   player: 1,
-  hand: [{ value: 10 }, { value: 6 }],
+  hand: playerHand.cards,
   deck: fullDeck,
   simulations: 3000
 });
 
-
-// Aggiornamento UI al ritorno dei dati
+// Ascolta le risposte dal worker
 worker.onmessage = (e) => {
   const data = e.data;
+
+  // Se è il messaggio di test
+  if (data === 'ready') {
+    console.log('✅ Worker test ricevuto, pronto a calcolare');
+    return;
+  }
+
+  console.log('📊 Risultati Monte Carlo:', data);
+
   const playerBox = document.querySelector(`#player-${data.player}`);
   if (!playerBox) return;
 
-  playerBox.querySelector('.hit-percent').textContent = `Hit: ${data.hit}%`;
-  playerBox.querySelector('.stand-percent').textContent = `Stand: ${data.stand}%`;
-  playerBox.querySelector('.double-percent').textContent = `Double: ${data.double}%`;
-  playerBox.querySelector('.split-percent').textContent = `Split: ${data.split}%`;
-  playerBox.querySelector('.action').textContent = data.bestAction.toUpperCase();
+  playerBox.querySelector('.hit-percent').textContent = `Hit: ${data.hit}`;
+  playerBox.querySelector('.stand-percent').textContent = `Stand: ${data.stand}`;
+  playerBox.querySelector('.double-percent').textContent = `Double: ${data.double}`;
+  playerBox.querySelector('.split-percent').textContent = `Split: ${data.split}`;
 };
+
 
 
 
