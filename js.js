@@ -766,7 +766,11 @@ function computeSuggestionForBox(boxIndex) {
     console.warn(`computeSuggestionForBox: dealerCard non definito, skip calcolo per box ${boxIndex+1}`);
     return { action: "—", ev: 0, trueCount: 0 };
   }
-
+ console.log(`📨 Invio al worker Monte Carlo:`, {
+    player: `Box ${boxIndex + 1}`,
+    hand: box.cards,
+    dealer: dealerCard,
+  });
   if (!box.cards || box.cards.length === 0) {
     return { action: "—", ev: 0, trueCount: 0 };
   }
@@ -973,10 +977,6 @@ function showMessage(msg) {
 const worker = new Worker('montecarloWorker.js');
 console.log('%c🧮 Monte Carlo Worker caricato correttamente!', 'color: limegreen; font-weight: bold;');
 
- 
-  
-
- 
 
 // Esempio: simulazione test
 const playerHand = { cards: [{ value: 8 }, { value: 8 }], value: 16 };
@@ -995,7 +995,7 @@ worker.postMessage({
 // Ascolta le risposte dal worker
 worker.onmessage = (e) => {
   const data = e.data;
-  // ignora i messaggi di test
+   // ignora i messaggi di test
   if (data === 'ready' || data?.reply === 'Worker attivo e risponde!') {
     console.log("✅ Worker collegato correttamente");
     //return;
