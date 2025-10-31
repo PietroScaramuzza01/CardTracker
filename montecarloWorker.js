@@ -58,12 +58,15 @@ function calculateProbabilities(hand, deck, nSim = 5000) {
 
   // Converti in percentuale
   for (let move in results) {
-    results[move] = ((results[move] / nSim) * 100).toFixed(1);
-  }
+  const val = results[move];
+  results[move] = (isNaN(val) ? 0 : (val / nSim) * 100).toFixed(1);
+}
 
   // Determina la migliore azione
-  const bestAction = Object.entries(results).sort((a, b) => b[1] - a[1])[0][0];
-  return { ...results, bestAction };
+ const bestAction = Object.entries(results)
+  .sort((a, b) => parseFloat(b[1]) - parseFloat(a[1]))[0][0];
+return { ...results, bestAction };
+
 }
 
 function simulateMove(cards, deck, move) {

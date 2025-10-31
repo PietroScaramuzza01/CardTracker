@@ -246,6 +246,11 @@ function updateRightSide() {
       standEl.textContent = b.suggestion?.stand != null ? `Stand: ${b.suggestion.stand}%` : "";
       doubleEl.textContent = b.suggestion?.double != null ? `Double: ${b.suggestion.double}%` : "";
       splitEl.textContent = b.suggestion?.split != null ? `Split: ${b.suggestion.split}%` : "";
+   splitEl.textContent =
+  typeof b.suggestion?.split === "string" || typeof b.suggestion?.split === "number"
+    ? `Split: ${b.suggestion.split}%`
+    : "";
+
     }
 
     // aggiorna classi box
@@ -988,24 +993,25 @@ worker.postMessage({
 // Ascolta le risposte dal worker
 worker.onmessage = (e) => {
   const data = e.data;
-
-  // Se è il messaggio di test
-  if (data === 'ready') {
-    console.log('✅ Worker test ricevuto, pronto a calcolare');
-    return;
-  }
-
-  console.log('📊 Risultati Monte Carlo:', data);
+  console.log("📊 Risultati Monte Carlo:", data);
 
   const playerBox = document.querySelector(`#player-${data.player}`);
   if (!playerBox) return;
 
+  // ✅ Sanifica i valori
+  ["hit", "stand", "double", "split"].forEach(move => {
+    if (typeof data[move] !== "string" && typeof data[move] !== "number") {
+      data[move] = 0;
+    }
+  });
 
-  playerBox.querySelector('.hit-percent').textContent = `Hit: ${data.hit}`;
-  playerBox.querySelector('.stand-percent').textContent = `Stand: ${data.stand}`;
-  playerBox.querySelector('.double-percent').textContent = `Double: ${data.double}`;
-  playerBox.querySelector('.split-percent').textContent = `Split: ${data.split}`;
+  playerBox.querySelector('.hit-percent').textContent = `Hit: ${data.hit}%`;
+  playerBox.querySelector('.stand-percent').textContent = `Stand: ${data.stand}%`;
+  playerBox.querySelector('.double-percent').textContent = `Double: ${data.double}%`;
+  playerBox.querySelector('.split-percent').textContent = `Split: ${data.split}%`;
+  playerBox.querySelector('.action').textContent = data.bestAction?.toUpperCase() || "—";
 };
+
 
 
 
