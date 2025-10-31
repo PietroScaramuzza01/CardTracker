@@ -2,20 +2,22 @@ console.log('🟢 Monte Carlo Worker inizializzato e in ascolto...');
 
 // Funzione principale
 onmessage = function(e) {
-   if (e.data.test) {
+  if (e.data.test) {
     console.log('✅ Worker test ricevuto, pronto a calcolare');
     postMessage('ready');
     return;
   }
+
   const { player, hand, deck, simulations } = e.data;
   if (!hand || !deck) {
     console.error("❌ Mancano dati per il calcolo:", e.data);
     return;
   }
+
   const results = calculateProbabilities({ cards: hand, value: computeScore(hand) }, deck, simulations);
   results.player = player;
   postMessage(results);
-}
+};
 
 // ================================
 // MONTE CARLO FUNCTIONS
@@ -36,8 +38,9 @@ const normalizedDeck = deck.map(normalizeCard);
 function calculateProbabilities(hand, deck, nSim = 5000) {
   const cards = hand.cards || hand;
   const results = { hit: 0, stand: 0, double: 0, split: 0 };
+const cardsArray = hand.cards || hand; // se già è un array, va bene
+const normalizedHand = cardsArray.map(normalizeCard);
 
-  const normalizedHand = hand.map(normalizeCard);
   const normalizedDeck = deck.map(normalizeCard);
 
   const playerValue = computeScore(normalizedHand);
