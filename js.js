@@ -175,11 +175,10 @@ function updateDealerCard() {
   const dealerCardEl = document.querySelector("#dealer-card");
   if (!dealerCardEl) return;
 
-  // 🔧 Usa la variabile GLOBALE, non crearne una nuova locale!
-  if (dealerCard && dealerCard !== "—") {
-    dealerCardEl.textContent = dealerCard;
-  } else {
-    dealerCardEl.textContent = "—";
+  const text = dealerCardEl.textContent.trim();
+  dealerCard = text && text !== "—" ? text : null;
+
+  if (!dealerCard) {
     console.warn("dealerCard non definito, ma aggiorno comunque le box");
   }
 }
@@ -350,6 +349,11 @@ function assignNextInitialCard(card) {
       return;
     }
   }
+if (dealerCard) {
+  boxes.forEach((b, i) => {
+    if (b.active && b.cards.length >= 2) computeSuggestionForBox(i);
+  });
+}
 
   console.warn("assignNextInitialCard: no recipient found for", card);
 
@@ -755,6 +759,13 @@ function totalValue(cards) {
 
 // === computeSuggestionForBox aggiornato ===
 function computeSuggestionForBox(boxIndex) {
+  
+  if (!dealerCard) {
+    console.warn(`computeSuggestionForBox: dealerCard non definito, skip calcolo per box ${boxIndex}`);
+    return;
+  }
+
+
   const dealerCardEl = document.querySelector(`#player-${boxIndex} .dealer-card`);
   if (!dealerCardEl || dealerCardEl.textContent.trim() === "—") {
     console.warn(`computeSuggestionForBox: dealerCard non definito, skip calcolo per box ${boxIndex}`);
