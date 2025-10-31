@@ -977,7 +977,7 @@ console.log('%c🧮 Monte Carlo Worker caricato correttamente!', 'color: limegre
   // ignora i messaggi di test
   if (data === 'ready' || data?.reply === 'Worker attivo e risponde!') {
     console.log("✅ Worker collegato correttamente");
-    return;
+    //return;
   }
 
   // altrimenti mostra i risultati reali
