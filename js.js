@@ -116,7 +116,7 @@ function initDeck(){
   cardValues.forEach(c => deckState[c] = 4 * numDecks);
 
   boxes.forEach(b => { b.cards = []; b.suggestion = null; b.tick = false; b.active = false; b.owner = false; });
-  dealerCard = null;
+  //dealerCard = null;
   initialDistributionComplete = false;
   nextInitialRecipientIndex = 0;
   buildRecipientSeq();
