@@ -177,14 +177,15 @@ function updateRightSide() {
   const dealerCardEl = document.querySelector("#dealer-card");
   if (!dealerCardEl) return;
 
-  dealerCardEl.textContent = dealerCard || "—";
-  if (!dealerCardEl || dealerCardEl.textContent.trim() === "—") {
+ const dealerCard = dealerCardEl.textContent.trim() || "—";
+  dealerCardEl.textContent = dealerCard; // aggiorna il DOM
+
+  if (dealerCard === "—") {
     console.warn("dealerCard non definito, skip updateRightSide()");
     return;
   }
 
-  //const dealerCard = dealerCardEl.textContent.trim();
-  const currentDealerCard = dealerCardEl.textContent.trim();
+ 
   boxes.forEach((b, idx) => {
     const boxEl = playerBoxes[idx];
     if (!boxEl) return;
