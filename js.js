@@ -40,7 +40,7 @@ let boxes = Array.from({length:7},(_,i)=>({
   suggestion: null,
   tick: false
 }));
-
+let dealerCard=null;
 
 let initialDistributionComplete = false;
 let nextInitialRecipientIndex = 0; // indice nella sequenza recipientSeq
