@@ -116,7 +116,7 @@ function initDeck(){
   cardValues.forEach(c => deckState[c] = 4 * numDecks);
 
   boxes.forEach(b => { b.cards = []; b.suggestion = null; b.tick = false; b.active = false; b.owner = false; });
-  //dealerCard = null;
+ // dealerCard = null;
   initialDistributionComplete = false;
   nextInitialRecipientIndex = 0;
   buildRecipientSeq();
@@ -173,15 +173,17 @@ function updateUI() {
 }
 function updateDealerCard() {
   const dealerCardEl = document.querySelector("#dealer-card");
-   if (!dealerCardEl) return;
+  if (!dealerCardEl) return;
 
-  const dealerCard = dealerCardEl.textContent.trim() || "—";
-  dealerCardEl.textContent = dealerCard;
-
-  if (dealerCard === "—") {
+  // 🔧 Usa la variabile GLOBALE, non crearne una nuova locale!
+  if (dealerCard && dealerCard !== "—") {
+    dealerCardEl.textContent = dealerCard;
+  } else {
+    dealerCardEl.textContent = "—";
     console.warn("dealerCard non definito, ma aggiorno comunque le box");
   }
 }
+
 // --- AGGIORNA DESTRA ---
 function updateRightSide() {
 
@@ -254,8 +256,7 @@ function updateRightSide() {
     if (ownerCb) ownerCb.checked = !!b.owner;
   });
 }
-const dealerCard = document.querySelector("#dealer-card")?.textContent.trim() || "—";
-updateRightSide(dealerCard);
+
 
 // --- AGGIUNGI CARTA ---
 function addCard(value) {
