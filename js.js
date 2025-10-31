@@ -122,6 +122,7 @@ function initDeck(){
   buildRecipientSeq();
 
   updateUI();
+  updateDealerCard();
   updateRightSide();
 }
 // --- CREA SEQUENZA DI DISTRIBUZIONE (players 1..N, DEALER) ---
@@ -170,9 +171,7 @@ function updateUI() {
   highCardsEl.textContent = high;
   lowCardsEl.textContent = low;
 }
-
-// --- AGGIORNA DESTRA ---
-function updateRightSide() {
+function updateDealerCard() {
   const dealerCardEl = document.querySelector("#dealer-card");
    if (!dealerCardEl) return;
 
@@ -182,6 +181,10 @@ function updateRightSide() {
   if (dealerCard === "—") {
     console.warn("dealerCard non definito, ma aggiorno comunque le box");
   }
+}
+// --- AGGIORNA DESTRA ---
+function updateRightSide() {
+
 
  
   boxes.forEach((b, idx) => {
@@ -286,6 +289,7 @@ function addCard(value) {
   }
 
   updateUI();
+  updateDealerCard();
   updateRightSide();
 }
 // === assegna NEXT initial card seguendo sequenza cyclic player..dealer .. player.. fino a completamento ===
@@ -313,6 +317,7 @@ function assignNextInitialCard(card) {
     dealerCard = card;
     assignmentHistory.push({ card, recipient: "DEALER", phase: "initial" });
     checkInitialDistributionComplete();
+    updateDealerCard();
     updateRightSide(); // ✅ AGGIUNTA QUI
     return;
   }
@@ -328,6 +333,7 @@ function assignNextInitialCard(card) {
         console.log(`Box ${idx + 1} (Initial) - Carte: [${b.cards.join(", ")}], Suggerimento: ${b.suggestion}`);
       }
       checkInitialDistributionComplete();
+      updateDealerCard();
       updateRightSide(); // ✅ AGGIUNTA QUI
       return;
     }
@@ -388,6 +394,7 @@ function updateAllSuggestions() {
       b.suggestion = res?.action || "—";
     }
   });
+  updateDealerCard();
   updateRightSide();
 }
 
@@ -397,6 +404,7 @@ function closeRound(){
   initialDistributionComplete = false;
   nextInitialRecipientIndex = 0;
   buildRecipientSeq();
+  updateDealerCard();
   updateRightSide();
 }
 
@@ -431,6 +439,7 @@ function undoCard(){
   lastCardEl.textContent = drawnCards.length ? drawnCards[drawnCards.length-1] : "—";
 
   updateUI();
+  updateDealerCard();
   updateRightSide();
   setTimeout(()=> addBtn.disabled = false, 50); // riattiva subito dopo
 }
@@ -458,6 +467,7 @@ function loadState(){
     deckInput.value = numDecks;
     buildRecipientSeq();
     updateUI();
+    updateDealerCard();
     updateRightSide();
     lastCardEl.textContent = drawnCards.at(-1) || "—";
   } catch (e) {
@@ -815,6 +825,7 @@ function importStateFile(file) {
       deckInput.value = numDecks;
       buildRecipientSeq();
       updateUI();
+      updateDealerCard();
       updateRightSide();
       lastCardEl.textContent = drawnCards.at(-1) || "—";
       showMessage("Importazione completata ✅");
@@ -867,6 +878,7 @@ playerBoxes.forEach((boxEl, idx) => {
   if (ownerCb) {
     ownerCb.addEventListener("change", e => {
       boxes[idx].owner = e.target.checked;
+      updateDealerCard();
       updateRightSide();
        // Log di conferma
       if (e.target.checked) {
@@ -883,6 +895,7 @@ playerBoxes.forEach((boxEl, idx) => {
       boxes[idx].active = e.target.checked;
       buildRecipientSeq(); // aggiorna sequenza distribuzione iniziale
       initialDistributionComplete = false;
+      updateDealerCard();
       updateRightSide();
        // Log di conferma
       if (e.target.checked) {
@@ -931,6 +944,7 @@ function undoCard(){
  cardInput.value = "";
   lastCardEl.textContent = drawnCards.at(-1) || "—";
   updateUI();
+  updateDealerCard();
   updateRightSide();
   setTimeout(()=> addBtn.disabled = false, 50); // riattiva subito dopo
 }
@@ -1028,6 +1042,7 @@ function initRoundActivePlayers(){
   initialDistributionComplete = false;
   nextInitialRecipientIndex = 0;
   buildRecipientSeq();
+  updateDealerCard();
   updateRightSide();
 }
 
@@ -1053,6 +1068,7 @@ function loadState(){
     deckInput.value = numDecks;
     buildRecipientSeq();
     updateUI();
+    updateDealerCard();
     updateRightSide();
     lastCardEl.textContent = drawnCards.at(-1) || "—";
   } catch (e) {
@@ -1062,4 +1078,3 @@ function loadState(){
 }
 
 
-alert
