@@ -289,7 +289,7 @@ function addCard(value) {
 
     nextCardBoxId = null;
   }
-computeSuggestionForBox(boxIndex);
+
 
   updateUI();
   updateDealerCard();
@@ -343,7 +343,7 @@ function assignNextInitialCard(card) {
   }
 
   console.warn("assignNextInitialCard: no recipient found for", card);
-computeSuggestionForBox(boxIndex);
+
 
 }
 
