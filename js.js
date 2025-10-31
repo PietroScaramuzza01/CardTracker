@@ -976,8 +976,7 @@ console.log('%c🧮 Monte Carlo Worker caricato correttamente!', 'color: limegre
  
   
 
-  // altrimenti mostra i risultati reali
-  console.log("📊 Risultati Monte Carlo:", data);
+ 
 
 // Esempio: simulazione test
 const playerHand = { cards: [{ value: 8 }, { value: 8 }], value: 16 };
