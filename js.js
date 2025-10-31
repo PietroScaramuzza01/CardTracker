@@ -974,11 +974,7 @@ const worker = new Worker('montecarloWorker.js');
 console.log('%c🧮 Monte Carlo Worker caricato correttamente!', 'color: limegreen; font-weight: bold;');
 
  
-  // ignora i messaggi di test
-  if (data === 'ready' || data?.reply === 'Worker attivo e risponde!') {
-    console.log("✅ Worker collegato correttamente");
-    //return;
-  }
+  
 
   // altrimenti mostra i risultati reali
   console.log("📊 Risultati Monte Carlo:", data);
@@ -1000,6 +996,11 @@ worker.postMessage({
 // Ascolta le risposte dal worker
 worker.onmessage = (e) => {
   const data = e.data;
+  // ignora i messaggi di test
+  if (data === 'ready' || data?.reply === 'Worker attivo e risponde!') {
+    console.log("✅ Worker collegato correttamente");
+    //return;
+  }
   console.log("📊 Risultati Monte Carlo:", data);
 
   const playerBox = document.querySelector(`#player-${data.player}`);
