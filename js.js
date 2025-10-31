@@ -173,8 +173,15 @@ function updateUI() {
 
 // --- AGGIORNA DESTRA ---
 function updateRightSide() {
+  
   dealerCardEl.textContent = dealerCard || "—";
+const dealerCardEl = document.querySelector("#dealer-card");
+  if (!dealerCardEl || dealerCardEl.textContent.trim() === "—") {
+    console.warn("dealerCard non definito, skip updateRightSide()");
+    return;
+  }
 
+  const dealerCard = dealerCardEl.textContent.trim();
   boxes.forEach((b, idx) => {
     const boxEl = playerBoxes[idx];
     if (!boxEl) return;

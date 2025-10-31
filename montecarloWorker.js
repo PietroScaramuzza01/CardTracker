@@ -8,6 +8,10 @@ onmessage = function(e) {
     return;
   }
   const { player, hand, deck, simulations } = e.data;
+  if (!hand || !deck) {
+    console.error("❌ Mancano dati per il calcolo:", e.data);
+    return;
+  }
   const results = calculateProbabilities({ cards: hand, value: computeScore(hand) }, deck, simulations);
   results.player = player;
   postMessage(results);
@@ -30,6 +34,7 @@ const normalizedDeck = deck.map(normalizeCard);
 
 
 function calculateProbabilities(hand, deck, nSim = 5000) {
+  const cards = hand.cards || hand;
   const results = { hit: 0, stand: 0, double: 0, split: 0 };
 
   const normalizedHand = hand.map(normalizeCard);
