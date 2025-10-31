@@ -254,7 +254,8 @@ function updateRightSide() {
     if (ownerCb) ownerCb.checked = !!b.owner;
   });
 }
-
+const dealerCard = document.querySelector("#dealer-card")?.textContent.trim() || "—";
+updateRightSide(dealerCard);
 
 // --- AGGIUNGI CARTA ---
 function addCard(value) {
