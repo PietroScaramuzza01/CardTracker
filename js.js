@@ -974,13 +974,13 @@ let fullDeck = [];
 for (let i = 1; i <= 13; i++) {
   for (let s = 0; s < 4; s++) fullDeck.push({ value: i });
 }
-
+/*
 worker.postMessage({
   player: 1,
   hand: playerHand.cards,
   deck: fullDeck,
   simulations: 3000
-});
+});*/
 
 // Ascolta le risposte dal worker
 worker.onmessage = (e) => {
@@ -996,6 +996,7 @@ worker.onmessage = (e) => {
 
   const playerBox = document.querySelector(`#player-${data.player}`);
   if (!playerBox) return;
+
 
   playerBox.querySelector('.hit-percent').textContent = `Hit: ${data.hit}`;
   playerBox.querySelector('.stand-percent').textContent = `Stand: ${data.stand}`;
