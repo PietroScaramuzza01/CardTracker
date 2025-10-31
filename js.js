@@ -102,13 +102,7 @@ function createExportImportUI() {
     importFileInput.value = ""; // reset
   });
 }
-document.querySelectorAll('.update-suggestion').forEach((btn, index) => {
-  btn.addEventListener('click', () => {
-    const playerBox = btn.closest('.player-box');
-    const hand = getPlayerHand(index + 1); // funzione che ritorna le carte del giocatore
-    updateProbabilities(hand); // funzione che invia dati al Worker
-  });
-});
+
 
 
 // --- INITIALIZZAZIONE DECK STATE ---
@@ -289,59 +283,50 @@ function addCard(value) {
 // funzione che assegna automaticamente le carte iniziali nell'ordine corretto
 function assignNextInitialCard(card) {
   const activeBoxes = boxes.filter(b => b.active);
-  
+
   for (let b of activeBoxes) {
     if (b.cards.length === 0) {
       b.cards.push(card);
-
-      // registra assegnazione per Undo
       const idx = boxes.indexOf(b);
-      assignmentHistory.push({ card: card, recipient: idx, phase: "initial" });
-
-      // LOG e calcolo suggerimento se box è di tua proprietà
+      assignmentHistory.push({ card, recipient: idx, phase: "initial" });
       if (b.owner) {
         const suggestionResult = computeSuggestionForBox(idx) || {};
         b.suggestion = suggestionResult.action || "—";
-        console.log(
-          `Box ${idx + 1} (Initial) - Carte: [${b.cards.join(", ")}], Suggerimento: ${b.suggestion}, EV: ${typeof suggestionResult.ev === 'number' ? suggestionResult.ev.toFixed(3) : suggestionResult.ev}, True Count: ${typeof suggestionResult.trueCount === 'number' ? suggestionResult.trueCount.toFixed(2) : suggestionResult.trueCount}`
-        );
+        console.log(`Box ${idx + 1} (Initial) - Carte: [${b.cards.join(", ")}], Suggerimento: ${b.suggestion}`);
       }
-
-      return checkInitialDistributionComplete();
+      checkInitialDistributionComplete();
+      updateRightSide(); // ✅ AGGIUNTA QUI
+      return;
     }
   }
 
-  // assegna al dealer se non ancora presente
   if (!dealerCard) {
     dealerCard = card;
-    assignmentHistory.push({ card: card, recipient: "DEALER", phase: "initial" });
-    return checkInitialDistributionComplete();
+    assignmentHistory.push({ card, recipient: "DEALER", phase: "initial" });
+    checkInitialDistributionComplete();
+    updateRightSide(); // ✅ AGGIUNTA QUI
+    return;
   }
 
-  // seconda carta dei box
   for (let b of activeBoxes) {
     if (b.cards.length < 2) {
       b.cards.push(card);
-
       const idx = boxes.indexOf(b);
-      assignmentHistory.push({ card: card, recipient: idx, phase: "initial" });
-
-      // LOG e calcolo suggerimento se box è di tua proprietà
+      assignmentHistory.push({ card, recipient: idx, phase: "initial" });
       if (b.owner) {
         const suggestionResult = computeSuggestionForBox(idx) || {};
         b.suggestion = suggestionResult.action || "—";
-        console.log(
-          `Box ${idx + 1} (Initial) - Carte: [${b.cards.join(", ")}], Suggerimento: ${b.suggestion}, EV: ${typeof suggestionResult.ev === 'number' ? suggestionResult.ev.toFixed(3) : suggestionResult.ev}, True Count: ${typeof suggestionResult.trueCount === 'number' ? suggestionResult.trueCount.toFixed(2) : suggestionResult.trueCount}`
-        );
+        console.log(`Box ${idx + 1} (Initial) - Carte: [${b.cards.join(", ")}], Suggerimento: ${b.suggestion}`);
       }
-
-      return checkInitialDistributionComplete();
+      checkInitialDistributionComplete();
+      updateRightSide(); // ✅ AGGIUNTA QUI
+      return;
     }
   }
 
-  // Se arriva qui, non ci sono destinatari (safety)
   console.warn("assignNextInitialCard: no recipient found for", card);
 }
+
 
 function checkInitialDistributionComplete() {
   const activeBoxes = boxes.filter(b => b.active);
@@ -958,30 +943,31 @@ worker.postMessage({ hand: playerHand, deck, simulations: 5000 });
 worker.onmessage = (event) => {
   const data = event.data;
 
-  // Aggiorna il div generico dei risultati (se serve)
+  // 🔍 Mostra tutto in console
+  console.log(`🎯 Montecarlo Player ${data.player} — Hit: ${data.hit}% | Stand: ${data.stand}% | Double: ${data.double}% | Split: ${data.split}% | Best: ${data.bestAction}`);
+
+  // Aggiorna il div dei risultati
   const resultsDiv = document.getElementById('results');
   if (resultsDiv) resultsDiv.innerHTML = JSON.stringify(data, null, 2);
 
-  // Aggiorna la UI dei player box
+  // Aggiorna UI box corrispondente
   const playerBox = document.querySelector(`#player-${data.player}`);
   if (!playerBox) return;
 
-  const hitEl = playerBox.querySelector('.hit-percent');
-  const standEl = playerBox.querySelector('.stand-percent');
-  const doubleEl = playerBox.querySelector('.double-percent');
-  const splitEl = playerBox.querySelector('.split-percent');
-
-  if (hitEl) hitEl.textContent = `${data.hit}%`;
-  if (standEl) standEl.textContent = `${data.stand}%`;
-  if (doubleEl) doubleEl.textContent = `${data.double}%`;
-  if (splitEl) splitEl.textContent = `${data.split}%`;
-
-  // Aggiorna anche il div .suggestion se vuoi mostrare l’azione migliore
-  const suggestionEl = playerBox.querySelector('.suggestion');
-  if (suggestionEl && data.bestAction) {
-    suggestionEl.textContent = data.bestAction;
+  function setText(sel, txt) {
+    const el = playerBox.querySelector(sel);
+    if (el) el.textContent = txt;
   }
+
+  setText('.hit-percent',  `Hit: ${data.hit}%`);
+  setText('.stand-percent',`Stand: ${data.stand}%`);
+  setText('.double-percent',`Double: ${data.double}%`);
+  setText('.split-percent', `Split: ${data.split}%`);
+
+  const suggestionEl = playerBox.querySelector('.suggestion .action');
+  if (suggestionEl) suggestionEl.textContent = data.bestAction || "—";
 };
+
 
 
 
