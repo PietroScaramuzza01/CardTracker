@@ -65,11 +65,6 @@ const gridButtons = document.querySelectorAll(".grid button:not(#undo)");
 const undoBtn = document.getElementById("undo");
 const resetBtn = document.getElementById("reset");
 const saveBtn = document.getElementById("save");
-const dealerCardEl = document.querySelector("#dealer-card");
-if (!dealerCardEl || dealerCardEl.textContent.trim() === "—") {
-  console.warn(`computeSuggestionForBox: dealerCard non definito, skip calcolo per box ${playerIndex}`);
-  }
-const dealerCard = dealerCardEl.textContent.trim();
 
 const playerBoxes = Array.from(document.querySelectorAll(".player-box"));
 const closeRoundBtn = document.getElementById("close-round");
@@ -727,6 +722,14 @@ function totalValue(cards) {
 
 // === computeSuggestionForBox aggiornato ===
 function computeSuggestionForBox(boxIndex) {
+  const dealerCardEl = document.querySelector(`#player-${boxIndex} .dealer-card`);
+  if (!dealerCardEl || dealerCardEl.textContent.trim() === "—") {
+    console.warn(`computeSuggestionForBox: dealerCard non definito, skip calcolo per box ${boxIndex}`);
+    return; // ✅ ok dentro funzione
+  }
+
+  const dealerCard = dealerCardEl.textContent.trim();
+
   const box = boxes[boxIndex];
   if (!box || !box.active || !box.owner) return null;
 
