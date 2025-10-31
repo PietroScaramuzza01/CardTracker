@@ -300,9 +300,13 @@ function addCard(value) {
   updateDealerCard();
   updateRightSide();
 }
+
+ dealerCard = dealerCard || null;
+
 // === assegna NEXT initial card seguendo sequenza cyclic player..dealer .. player.. fino a completamento ===
 // funzione che assegna automaticamente le carte iniziali nell'ordine corretto
 function assignNextInitialCard(card) {
+  
   const activeBoxes = boxes.filter(b => b.active);
 
   for (let b of activeBoxes) {
