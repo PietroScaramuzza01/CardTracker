@@ -179,12 +179,18 @@ function updateDealerCard() {
   if (!dealerCardEl) return;
 
   const text = dealerCardEl.textContent.trim();
-  dealerCard = text && text !== "—" ? text : null;
 
-  if (!dealerCard) {
+  // ✅ Se c'è testo valido, aggiorna la variabile
+  if (text && text !== "—") {
+    dealerCard = text;
+  }
+
+  // ❌ Se è vuoto o “—”, NON resettare dealerCard
+  else if (!dealerCard) {
     console.warn("dealerCard non definito, ma aggiorno comunque le box");
   }
 }
+
 
 // --- AGGIORNA DESTRA ---
 function updateRightSide() {
