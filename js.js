@@ -131,7 +131,10 @@ function buildRecipientSeq(){
   recipientSeq.push("DEALER");
   nextInitialRecipientIndex = 0;
 }
-
+function isInitialDistributionComplete() {
+  const allBoxesReady = boxes.every(b => !b.active || b.cards.length >= 2);
+  return dealerCard && allBoxesReady;
+}
 // --- UPDATE UI SINISTRA ---
 function updateUI() {
   totalCardsEl.textContent = totalCards;
@@ -263,84 +266,121 @@ function updateRightSide() {
 
 
 // --- AGGIUNGI CARTA ---
-function addCard(value) {
-  if (!value || typeof value !== "string") return;
-  value = value.toUpperCase();
-  if (!cardValues.includes(value)) { showMessage("Carta non valida!"); return; }
-  if (!deckState[value] || deckState[value] <= 0) { showMessage("Tutte le carte di questo valore sono già uscite!"); return; }
-
-  deckState[value]--;
-  remainingCards--;
-  runningCount += hiLoValues[value] || 0;
-  drawnCards.push(value);
-  lastCardEl.textContent = value;
-
-  if (!initialDistributionComplete) {
-    assignNextInitialCard(value);
-  } else if (nextCardBoxId) {
-    const box = boxes[nextCardBoxId - 1];
-    box.cards.push(value);
-
-    // registra assegnazione per Undo
-    assignmentHistory.push({ card: value, recipient: nextCardBoxId - 1, phase: "manual" });
-
-    // Calcola suggerimento
-    const suggestionResult = computeSuggestionForBox(nextCardBoxId - 1) || {};
-    box.suggestion = suggestionResult?.action || "—";
-
-    // LOG su console (safe formatting)
-    console.log(`Box ${nextCardBoxId} - Carte: [${box.cards.join(", ")}], Suggerimento: ${box.suggestion}, EV: ${typeof suggestionResult.ev === 'number' ? suggestionResult.ev.toFixed(3) : suggestionResult.ev}, True Count: ${typeof suggestionResult.trueCount === 'number' ? suggestionResult.trueCount.toFixed(2) : suggestionResult.trueCount}`);
-
-    nextCardBoxId = null;
+function addCard(card) {
+  if (!card) {
+    console.warn("⚠️ addCard: nessuna carta fornita");
+    return;
   }
 
+  // 🔹 1. Se siamo nella fase iniziale, distribuiamo carte base
+  if (!isInitialDistributionComplete()) {
+    assignNextInitialCard(card);
+    return;
+  }
 
-  updateUI();
-  updateDealerCard();
+  // 🔹 2. Se siamo nella fase di gioco (dopo la distribuzione iniziale)
+  const activeBox = boxes.find(b => b.active && b.owner);
+
+  if (!activeBox) {
+    console.warn("⚠️ addCard: nessun box attivo trovato");
+    return;
+  }
+
+  // Aggiunge la carta al box corrente
+  activeBox.cards.push(card);
+  assignmentHistory.push({
+    card,
+    recipient: boxes.indexOf(activeBox),
+    phase: "play",
+  });
+
+  // Aggiorna la UI
   updateRightSide();
+  updateDealerCard();
+
+  console.log(
+    `🃏 addCard: aggiunta carta ${card} al box ${boxes.indexOf(activeBox) + 1}`
+  );
+
+  // 🔹 3. Calcola suggerimento aggiornato SOLO se il dealer ha la carta
+  if (dealerCard) {
+    const idx = boxes.indexOf(activeBox);
+    const suggestionResult = computeSuggestionForBox(idx) || {};
+    activeBox.suggestion = suggestionResult.action || "—";
+
+    console.log(
+      `🔁 Suggerimento aggiornato per Box ${idx + 1}: ${activeBox.suggestion}`
+    );
+  } else {
+    console.warn("⚠️ addCard: dealerCard non ancora definito, skip suggerimento");
+  }
 }
+
 
  dealerCard = dealerCard || null;
 
 // === assegna NEXT initial card seguendo sequenza cyclic player..dealer .. player.. fino a completamento ===
 // funzione che assegna automaticamente le carte iniziali nell'ordine corretto
-let currentDealIndex = 0; // tiene traccia di a chi dare la prossima carta
-const dealOrder = ["BOX1", "BOX2", "BOX3", "BOX4", "BOX5", "DEALER"]; // o quanti box hai realmente
+function assignNextInitialCard(card) {
+  const activeBoxes = boxes.filter(b => b.active);
 
-function assignNextInitialCard() {
-  // se abbiamo finito il giro iniziale (2 carte per ogni partecipante), esci
-  const totalNeeded = dealOrder.length * 2;
-  const totalDealt = boxes.reduce((sum, b) => sum + b.cards.length, 0) + (dealerCard ? 1 : 0);
-  if (totalDealt >= totalNeeded) {
-    console.log("🃏 Tutte le carte iniziali distribuite");
-    return;
-  }
+  // 🔹 1° giro: assegna la prima carta ai box
+  for (let b of activeBoxes) {
+    if (b.cards.length === 0) {
+      b.cards.push(card);
+      const idx = boxes.indexOf(b);
+      assignmentHistory.push({ card, recipient: idx, phase: "initial" });
 
-  // identifica il prossimo destinatario
-  const target = dealOrder[currentDealIndex % dealOrder.length];
-
-  if (target === "DEALER") {
-    // assegna la carta al dealer
-    const newCard = drawCard(deckState);
-    dealerCard = newCard.value || newCard;
-    const dealerEl = document.querySelector("#dealer-card");
-    if (dealerEl) dealerEl.textContent = dealerCard;
-    console.log(`🂠 Dealer riceve carta: ${dealerCard}`);
-  } else {
-    // assegna la carta al box corrispondente
-    const boxIndex = parseInt(target.replace("BOX", "")) - 1;
-    const box = boxes[boxIndex];
-    if (box && box.active && box.owner) {
-      const newCard = drawCard(deckState);
-      box.cards.push(newCard.value || newCard);
-      console.log(`🃏 Box ${boxIndex + 1} riceve carta: ${newCard.value || newCard}`);
+      // ❌ NON calcolare suggerimenti ancora, manca la carta dealer
+      checkInitialDistributionComplete();
       updateRightSide();
+      return;
     }
   }
 
-  // passa al prossimo
-  currentDealIndex++;
+  // 🔹 2° carta al dealer
+  if (!dealerCard) {
+    dealerCard = card;
+    assignmentHistory.push({ card, recipient: "DEALER", phase: "initial" });
+    updateDealerCard();
+    updateRightSide();
+    checkInitialDistributionComplete();
+    return;
+  }
+
+  // 🔹 3° giro: assegna la seconda carta ai box
+  for (let b of activeBoxes) {
+    if (b.cards.length < 2) {
+      b.cards.push(card);
+      const idx = boxes.indexOf(b);
+      assignmentHistory.push({ card, recipient: idx, phase: "initial" });
+
+      // ✅ Ora che abbiamo dealerCard, possiamo calcolare suggerimenti
+      if (b.owner && dealerCard) {
+        const suggestionResult = computeSuggestionForBox(idx) || {};
+        b.suggestion = suggestionResult.action || "—";
+        console.log(
+          `Box ${idx + 1} (Initial) - Carte: [${b.cards.join(", ")}], Suggerimento: ${b.suggestion}`
+        );
+      }
+
+      updateDealerCard();
+      updateRightSide();
+      checkInitialDistributionComplete();
+      return;
+    }
+  }
+
+  // 🔹 Fine: se tutti hanno 2 carte, aggiorna suggerimenti
+  if (dealerCard) {
+    boxes.forEach((b, i) => {
+      if (b.active && b.cards.length >= 2) computeSuggestionForBox(i);
+    });
+  }
+
+  console.warn("assignNextInitialCard: no recipient found for", card);
 }
+
 
 
 
@@ -783,6 +823,8 @@ function computeSuggestionForBox(boxIndex) {
     return { action: "—", ev: 0, trueCount: 0 };
   }
 }
+
+
 
 
 
