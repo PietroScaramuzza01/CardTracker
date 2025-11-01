@@ -304,61 +304,44 @@ function addCard(value) {
 
 // === assegna NEXT initial card seguendo sequenza cyclic player..dealer .. player.. fino a completamento ===
 // funzione che assegna automaticamente le carte iniziali nell'ordine corretto
-function assignNextInitialCard(card) {
-  
-  const activeBoxes = boxes.filter(b => b.active);
+let currentDealIndex = 0; // tiene traccia di a chi dare la prossima carta
+const dealOrder = ["BOX1", "BOX2", "BOX3", "BOX4", "BOX5", "DEALER"]; // o quanti box hai realmente
 
-  for (let b of activeBoxes) {
-    if (b.cards.length === 0) {
-      b.cards.push(card);
-      const idx = boxes.indexOf(b);
-      assignmentHistory.push({ card, recipient: idx, phase: "initial" });
-      if (b.owner) {
-        const suggestionResult = computeSuggestionForBox(idx) || {};
-        b.suggestion = suggestionResult.action || "—";
-        console.log(`Box ${idx + 1} (Initial) - Carte: [${b.cards.join(", ")}], Suggerimento: ${b.suggestion}`);
-      }
-      checkInitialDistributionComplete();
-      updateRightSide(); // ✅ AGGIUNTA QUI
-      return;
-    }
-  }
-
-  if (!dealerCard) {
-    dealerCard = card;
-    assignmentHistory.push({ card, recipient: "DEALER", phase: "initial" });
-    checkInitialDistributionComplete();
-    updateDealerCard();
-    updateRightSide(); // ✅ AGGIUNTA QUI
+function assignNextInitialCard() {
+  // se abbiamo finito il giro iniziale (2 carte per ogni partecipante), esci
+  const totalNeeded = dealOrder.length * 2;
+  const totalDealt = boxes.reduce((sum, b) => sum + b.cards.length, 0) + (dealerCard ? 1 : 0);
+  if (totalDealt >= totalNeeded) {
+    console.log("🃏 Tutte le carte iniziali distribuite");
     return;
   }
 
-  for (let b of activeBoxes) {
-    if (b.cards.length < 2) {
-      b.cards.push(card);
-      const idx = boxes.indexOf(b);
-      assignmentHistory.push({ card, recipient: idx, phase: "initial" });
-      if (b.owner) {
-        const suggestionResult = computeSuggestionForBox(idx) || {};
-        b.suggestion = suggestionResult.action || "—";
-        console.log(`Box ${idx + 1} (Initial) - Carte: [${b.cards.join(", ")}], Suggerimento: ${b.suggestion}`);
-      }
-      checkInitialDistributionComplete();
-      updateDealerCard();
-      updateRightSide(); // ✅ AGGIUNTA QUI
-      return;
+  // identifica il prossimo destinatario
+  const target = dealOrder[currentDealIndex % dealOrder.length];
+
+  if (target === "DEALER") {
+    // assegna la carta al dealer
+    const newCard = drawCard(deckState);
+    dealerCard = newCard.value || newCard;
+    const dealerEl = document.querySelector("#dealer-card");
+    if (dealerEl) dealerEl.textContent = dealerCard;
+    console.log(`🂠 Dealer riceve carta: ${dealerCard}`);
+  } else {
+    // assegna la carta al box corrispondente
+    const boxIndex = parseInt(target.replace("BOX", "")) - 1;
+    const box = boxes[boxIndex];
+    if (box && box.active && box.owner) {
+      const newCard = drawCard(deckState);
+      box.cards.push(newCard.value || newCard);
+      console.log(`🃏 Box ${boxIndex + 1} riceve carta: ${newCard.value || newCard}`);
+      updateRightSide();
     }
   }
-if (dealerCard) {
-  boxes.forEach((b, i) => {
-    if (b.active && b.cards.length >= 2) computeSuggestionForBox(i);
-  });
+
+  // passa al prossimo
+  currentDealIndex++;
 }
 
-  console.warn("assignNextInitialCard: no recipient found for", card);
-
-
-}
 
 
 function checkInitialDistributionComplete() {
