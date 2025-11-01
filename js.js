@@ -329,21 +329,20 @@ function addCard(card) {
 function assignNextInitialCard(card) {
   const activeBoxes = boxes.filter(b => b.active);
 
-  // 🔹 Caso 1: prima distribuzione (tutti i box hanno 0 carte)
-  const boxesWithoutCards = activeBoxes.filter(b => b.cards.length === 0);
-  if (boxesWithoutCards.length > 0) {
-    const nextBox = boxesWithoutCards[0];
-    nextBox.cards.push(card);
-    const idx = boxes.indexOf(nextBox);
-    assignmentHistory.push({ card, recipient: idx, phase: "initial" });
-    console.log(`🃏 Carta iniziale ${card} → Box ${idx + 1} (prima distribuzione)`);
-
-    updateRightSide();
-    checkInitialDistributionComplete();
-    return;
+  // --- 1️⃣ Assegna prima carta a ogni box attivo ---
+  for (let b of activeBoxes) {
+    if (b.cards.length < 1) {
+      b.cards.push(card);
+      const idx = boxes.indexOf(b);
+      assignmentHistory.push({ card, recipient: idx, phase: "initial" });
+      console.log(`🃏 Carta iniziale ${card} → Box ${idx + 1} (prima)`);
+      updateRightSide();
+      checkInitialDistributionComplete();
+      return;
+    }
   }
 
-  // 🔹 Caso 2: dealer non ha ancora carta
+  // --- 2️⃣ Assegna la carta al dealer (una sola volta) ---
   if (!dealerCard) {
     dealerCard = card;
     assignmentHistory.push({ card, recipient: "DEALER", phase: "initial" });
@@ -354,40 +353,46 @@ function assignNextInitialCard(card) {
     return;
   }
 
-  // 🔹 Caso 3: secondo giro (box con solo 1 carta)
-  const boxesWithOneCard = activeBoxes.filter(b => b.cards.length === 1);
-  if (boxesWithOneCard.length > 0) {
-    const nextBox = boxesWithOneCard[0];
-    nextBox.cards.push(card);
-    const idx = boxes.indexOf(nextBox);
-    assignmentHistory.push({ card, recipient: idx, phase: "initial" });
-    console.log(`🃏 Carta iniziale ${card} → Box ${idx + 1} (seconda distribuzione)`);
+  // --- 3️⃣ Assegna seconda carta ai box ---
+  for (let b of activeBoxes) {
+    if (b.cards.length < 2) {
+      b.cards.push(card);
+      const idx = boxes.indexOf(b);
+      assignmentHistory.push({ card, recipient: idx, phase: "initial" });
 
-    if (nextBox.owner && dealerCard) {
-      const suggestionResult = computeSuggestionForBox(idx) || {};
-      nextBox.suggestion = suggestionResult.action || "—";
-      console.log(
-        `📊 Box ${idx + 1} (Initial) - Carte: [${nextBox.cards.join(", ")}], Suggerimento: ${nextBox.suggestion}`
-      );
+      // Solo ora calcoliamo suggerimenti (dealer definito)
+      if (b.owner && dealerCard) {
+        const suggestionResult = computeSuggestionForBox(idx) || {};
+        b.suggestion = suggestionResult.action || "—";
+        console.log(
+          `Box ${idx + 1} (Initial) - Carte: [${b.cards.join(", ")}], Suggerimento: ${b.suggestion}`
+        );
+      }
+
+      updateRightSide();
+      checkInitialDistributionComplete();
+      return;
+    }
+  }
+
+  // --- 4️⃣ Dopo la distribuzione completa ---
+  const allBoxesHaveTwo = activeBoxes.every(b => b.cards.length >= 2);
+  if (allBoxesHaveTwo && dealerCard) {
+    initialDistributionComplete = true;
+
+    // Attiva automaticamente il primo box di proprietà
+    const firstOwned = boxes.find(b => b.owner);
+    if (firstOwned) {
+      boxes.forEach(b => (b.active = false));
+      firstOwned.active = true;
+      console.log(`🎯 Turno attivo → Box ${boxes.indexOf(firstOwned) + 1}`);
     }
 
     updateRightSide();
-    updateDealerCard();
-    checkInitialDistributionComplete();
-    return;
-  }
-
-  // 🔹 Caso 4: tutti completi → aggiorna suggerimenti finali
-  if (dealerCard) {
-    boxes.forEach((b, i) => {
-      if (b.active && b.cards.length >= 2) computeSuggestionForBox(i);
-    });
     console.log("✅ Distribuzione iniziale completata");
-    initialDistributionComplete = true;
-  } else {
-    console.warn("assignNextInitialCard: dealerCard mancante dopo distribuzione iniziale");
   }
 }
+
 
 
 
