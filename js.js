@@ -759,36 +759,59 @@ function totalValue(cards) {
 
 // === computeSuggestionForBox aggiornato ===
 function computeSuggestionForBox(boxIndex) {
-  
   if (!dealerCard) {
     console.warn(`computeSuggestionForBox: dealerCard non definito, skip calcolo per box ${boxIndex}`);
     return;
   }
 
-
   const dealerCardEl = document.querySelector(`#player-${boxIndex} .dealer-card`);
   if (!dealerCardEl || dealerCardEl.textContent.trim() === "—") {
     console.warn(`computeSuggestionForBox: dealerCard non definito, skip calcolo per box ${boxIndex}`);
-    return; // ✅ ok dentro funzione
+    return;
   }
 
-  const dealerCard = dealerCardEl.textContent.trim();
+  // 🔧 FIX: rinominata variabile locale
+  const dealerCardText = dealerCardEl.textContent.trim();
 
   const box = boxes[boxIndex];
   if (!box || !box.active || !box.owner) return null;
 
-  if (!dealerCard || dealerCard === "—" || dealerCard === null) {
+  if (!dealerCardText || dealerCardText === "—") {
     console.warn(`computeSuggestionForBox: dealerCard non definito, skip calcolo per box ${boxIndex+1}`);
     return { action: "—", ev: 0, trueCount: 0 };
   }
- console.log(`📨 Invio al worker Monte Carlo:`, {
+
+  console.log(`📨 Invio al worker Monte Carlo:`, {
     player: `Box ${boxIndex + 1}`,
     hand: box.cards,
-    dealer: dealerCard,
+    dealer: dealerCardText,
   });
+
   if (!box.cards || box.cards.length === 0) {
     return { action: "—", ev: 0, trueCount: 0 };
   }
+
+  try {
+    const decksRemaining = remainingCards / 52;
+    const tc = decksRemaining > 0 ? runningCount / decksRemaining : 0;
+    const deckClone = cloneDeck(deckState);
+
+    const canDouble = box.cards.length === 2;
+    const res = evaluateBestAction(box.cards.slice(), deckClone, dealerCardText, canDouble, true, false);
+
+    if (!res || !res.action || isNaN(res.ev)) {
+      console.warn("computeSuggestionForBox: risultato non valido", res);
+      return { action: "—", ev: 0, trueCount: tc };
+    }
+
+    const smartAction = practicalSuggestion(res, tc, box.cards, dealerCardText);
+    return { action: smartAction, ev: res.ev, trueCount: tc };
+  } catch (err) {
+    console.error("computeSuggestionForBox: errore nel calcolo EV", err);
+    return { action: "—", ev: 0, trueCount: 0 };
+  }
+}
+
 
   try {
     const decksRemaining = remainingCards / 52;
