@@ -191,7 +191,6 @@ function updateDealerCard() {
   }
 }
 
-
 // --- AGGIORNA DESTRA ---
 function updateRightSide() {
 
@@ -400,6 +399,14 @@ function checkInitialDistributionComplete() {
   if (allBoxesHaveTwo && dealerCard) {
     initialDistributionComplete = true;
   }
+   // ✅ Attiva il primo box di proprietà (turno inizia)
+    const firstOwned = boxes.find(b => b.owner);
+    if (firstOwned) {
+      boxes.forEach(b => b.active = false);
+      firstOwned.active = true;
+      console.log(`🎯 Turno inizia con Box ${boxes.indexOf(firstOwned) + 1}`);
+      updateRightSide();
+}
 }
 
 // --- DISTRIBUZIONE INITIAL CARDS (utility) ---
@@ -798,13 +805,13 @@ function computeSuggestionForBox(boxIndex) {
     return { action: "—", ev: 0, trueCount: 0 };
   }
 
-  const dealerCardEl = document.querySelector(`#player-${boxIndex} .dealer-card`);
-  if (!dealerCardEl || dealerCardEl.textContent.trim() === "—") {
-    console.warn(`computeSuggestionForBox: dealerCard element mancante o vuoto per box ${boxIndex}`);
-    return { action: "—", ev: 0, trueCount: 0 };
-  }
+  // 🔧 Usa direttamente la variabile globale
+const dealerCardText = dealerCard;
+if (!dealerCardText || dealerCardText === "—") {
+  console.warn(`computeSuggestionForBox: dealerCard non definito, skip calcolo per box ${boxIndex + 1}`);
+  return { action: "—", ev: 0, trueCount: 0 };
+}
 
-  const dealerCardText = dealerCardEl.textContent.trim();
 
   const box = boxes[boxIndex];
   if (!box || !box.active || !box.owner) return { action: "—", ev: 0, trueCount: 0 };
