@@ -759,33 +759,22 @@ function totalValue(cards) {
 
 // === computeSuggestionForBox aggiornato ===
 function computeSuggestionForBox(boxIndex) {
+  // sicurezza: assicurati che dealerCard sia disponibile (variabile globale)
   if (!dealerCard) {
     console.warn(`computeSuggestionForBox: dealerCard non definito, skip calcolo per box ${boxIndex}`);
-    return;
+    return { action: "—", ev: 0, trueCount: 0 };
   }
 
   const dealerCardEl = document.querySelector(`#player-${boxIndex} .dealer-card`);
   if (!dealerCardEl || dealerCardEl.textContent.trim() === "—") {
-    console.warn(`computeSuggestionForBox: dealerCard non definito, skip calcolo per box ${boxIndex}`);
-    return;
-  }
-
-  // 🔧 FIX: rinominata variabile locale
-  const dealerCardText = dealerCardEl.textContent.trim();
-
-  const box = boxes[boxIndex];
-  if (!box || !box.active || !box.owner) return null;
-
-  if (!dealerCardText || dealerCardText === "—") {
-    console.warn(`computeSuggestionForBox: dealerCard non definito, skip calcolo per box ${boxIndex+1}`);
+    console.warn(`computeSuggestionForBox: dealerCard element mancante o vuoto per box ${boxIndex}`);
     return { action: "—", ev: 0, trueCount: 0 };
   }
 
-  console.log(`📨 Invio al worker Monte Carlo:`, {
-    player: `Box ${boxIndex + 1}`,
-    hand: box.cards,
-    dealer: dealerCardText,
-  });
+  const dealerCardText = dealerCardEl.textContent.trim();
+
+  const box = boxes[boxIndex];
+  if (!box || !box.active || !box.owner) return { action: "—", ev: 0, trueCount: 0 };
 
   if (!box.cards || box.cards.length === 0) {
     return { action: "—", ev: 0, trueCount: 0 };
@@ -805,30 +794,6 @@ function computeSuggestionForBox(boxIndex) {
     }
 
     const smartAction = practicalSuggestion(res, tc, box.cards, dealerCardText);
-    return { action: smartAction, ev: res.ev, trueCount: tc };
-  } catch (err) {
-    console.error("computeSuggestionForBox: errore nel calcolo EV", err);
-    return { action: "—", ev: 0, trueCount: 0 };
-  }
-}
-
-
-  try {
-    const decksRemaining = remainingCards / 52;
-    const tc = decksRemaining > 0 ? runningCount / decksRemaining : 0;
-    const deckClone = cloneDeck(deckState);
-
-    const canDouble = box.cards.length === 2;
-    const res = evaluateBestAction(box.cards.slice(), deckClone, dealerCard, canDouble, true, false);
-
-    if (!res || !res.action || isNaN(res.ev)) {
-      console.warn("computeSuggestionForBox: risultato non valido", res);
-      return { action: "—", ev: 0, trueCount: tc };
-    }
-
-    // Applica il ragionamento strategico
-    const smartAction = practicalSuggestion(res, tc, box.cards, dealerCard);
-
     return { action: smartAction, ev: res.ev, trueCount: tc };
   } catch (err) {
     console.error("computeSuggestionForBox: errore nel calcolo EV", err);
