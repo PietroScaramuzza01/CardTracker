@@ -1,12 +1,17 @@
+
 window.addEventListener("load", () => {
   // Cancella eventuali salvataggi automatici
-  localStorage.removeItem("cardTrackerState");
+  //localStorage.removeItem("cardTrackerState");
 
   // Reinizializza tutto
   if (typeof resetGame === "function") resetGame();
   console.log("🔄 Stato azzerato all'avvio");
 
-  console.log("V.J.S. 0.0.3");
+  console.log("V.J.S. 0.0.4");
+});
+document.getElementById("clear-storage").addEventListener("click", () => {
+  localStorage.removeItem("cardTrackerState");
+  showMessage("Archivio locale cancellato ❌");
 });
 
 // ===== Card Tracker + Player Boxes + EV engine =====
@@ -177,21 +182,19 @@ function updateUI() {
   lowCardsEl.textContent = low;
 }
 function updateDealerCard() {
-  const dealerCardEl = document.querySelector("#dealer-card");
-  if (!dealerCardEl) return;
+  const dealerEl = document.getElementById("dealer-card");
+  if (!dealerEl) return;
 
-  const text = dealerCardEl.textContent.trim();
-
-  // ✅ Se c'è testo valido, aggiorna la variabile
-  if (text && text !== "—") {
-    dealerCard = text;
-  }
-
-  // ❌ Se è vuoto o “—”, NON resettare dealerCard
-  else if (!dealerCard) {
+  if (!dealerCard) {
     console.warn("dealerCard non definito, ma aggiorno comunque le box");
+    dealerEl.textContent = "—";
+    return;
   }
+
+  dealerEl.textContent = dealerCard;
+  console.log(`🂠 Dealer mostra: ${dealerCard}`);
 }
+
 
 // --- AGGIORNA DESTRA ---
 function updateRightSide() {
