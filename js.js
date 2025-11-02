@@ -7,7 +7,7 @@ window.addEventListener("load", () => {
   if (typeof resetGame === "function") resetGame();
   console.log("🔄 Stato azzerato all'avvio");
 
-  console.log("V.J.S. 0.0.4");
+  console.log("V.J.S. 0.0.5");
 });
 document.getElementById("clear-storage").addEventListener("click", () => {
   localStorage.removeItem("cardTrackerState");
@@ -144,6 +144,8 @@ function isInitialDistributionComplete() {
 }
 // --- UPDATE UI SINISTRA ---
 function updateUI() {
+  console.log("DEBUG updateUI:", { remainingCards, runningCount, deckState: {...deckState} });
+
   totalCardsEl.textContent = totalCards;
   remainingEl.textContent = remainingCards;
   runningCountEl.textContent = runningCount>0?`+${runningCount}`:runningCount;
@@ -276,55 +278,98 @@ function updateRightSide() {
 
 
 // --- AGGIUNGI CARTA ---
+// Sostituisci la tua funzione addCard con questa versione che aggiorna anche deckState / runningCount / drawnCards
 function addCard(card) {
   if (!card) {
     console.warn("⚠️ addCard: nessuna carta fornita");
     return;
   }
 
+  // normalizza input (string come "10","J","A")
+  card = card.toString().toUpperCase();
+
+  // sicurezza: il valore deve essere valido
+  if (!cardValues.includes(card)) {
+    console.warn("addCard: carta non valida", card);
+    return;
+  }
+
+  // --- AGGIORNA STATO DEL MAZZO (prima di assegnare) ---
+  // se deckState non è inizializzato, inizializzalo per sicurezza
+  if (!deckState || typeof deckState[card] === "undefined") {
+    // ricrea stato mazzo se necessario
+    cardValues.forEach(c => { if (!deckState[c]) deckState[c] = 4 * numDecks; });
+  }
+
+  if (!deckState[card] || deckState[card] <= 0) {
+    showMessage("Tutte le carte di questo valore sono già uscite!");
+    console.warn("addCard: carta esaurita", card);
+    return;
+  }
+
+  // decrementa mazzo, aggiorna conteggi
+  deckState[card]--;
+  remainingCards--;
+  runningCount += hiLoValues[card] || 0;
+  drawnCards.push(card);
+  lastCardEl.textContent = card;
+
+  // registra assignment generale (serve per undo)
+  // lo spostiamo in assignmentHistory dentro assignNextInitialCard o nelle assegnazioni manuali:
+  // ma qui aggiungiamo la carta all'array drawnCards comunque.
+
   // 🔹 1. Se siamo nella fase iniziale, distribuiamo carte base
   if (!isInitialDistributionComplete()) {
     assignNextInitialCard(card);
+    // dopo aver assegnato iniziali aggiorna UI destra e sinistra
+    updateUI();
+    updateDealerCard();
+    updateRightSide();
     return;
   }
 
-  // 🔹 2. Se siamo nella fase di gioco (dopo la distribuzione iniziale)
-  const activeBox = boxes.find(b => b.active && b.owner);
+  // 🔹 2. Fase di gioco normale: se è stato impostato un nextCardBoxId (manualmente) usa quello,
+  // altrimenti usa il box attivo + di proprietà
+  let recipientIndex = null;
+  if (nextCardBoxId) {
+    recipientIndex = nextCardBoxId - 1;
+    nextCardBoxId = null; // consuma la richiesta
+  } else {
+    const activeBox = boxes.find(b => b.active && b.owner);
+    if (activeBox) recipientIndex = boxes.indexOf(activeBox);
+  }
 
-  if (!activeBox) {
-    console.warn("⚠️ addCard: nessun box attivo trovato");
+  if (recipientIndex === null) {
+    console.warn("addCard: nessun box destinatario trovato, carta registrata ma non assegnata ai box:", card);
+    // mantieni comunque l'aggiornamento dei conteggi a destra
+    updateUI();
+    updateDealerCard();
+    updateRightSide();
     return;
   }
 
-  // Aggiunge la carta al box corrente
-  activeBox.cards.push(card);
+  // assegna la carta al box destinatario
+  boxes[recipientIndex].cards.push(card);
   assignmentHistory.push({
     card,
-    recipient: boxes.indexOf(activeBox),
-    phase: "play",
+    recipient: recipientIndex,
+    phase: "manual",
   });
 
-  // Aggiorna la UI
-  updateRightSide();
-  updateDealerCard();
-
-  console.log(
-    `🃏 addCard: aggiunta carta ${card} al box ${boxes.indexOf(activeBox) + 1}`
-  );
-
-  // 🔹 3. Calcola suggerimento aggiornato SOLO se il dealer ha la carta
-  if (dealerCard) {
-    const idx = boxes.indexOf(activeBox);
-    const suggestionResult = computeSuggestionForBox(idx) || {};
-    activeBox.suggestion = suggestionResult.action || "—";
-
-    console.log(
-      `🔁 Suggerimento aggiornato per Box ${idx + 1}: ${activeBox.suggestion}`
-    );
-  } else {
-    console.warn("⚠️ addCard: dealerCard non ancora definito, skip suggerimento");
+  // aggiorna suggerimento solo se il dealer è noto e il box è di tua proprietà
+  if (boxes[recipientIndex].owner && dealerCard) {
+    const suggestionResult = computeSuggestionForBox(recipientIndex) || {};
+    boxes[recipientIndex].suggestion = suggestionResult.action || "—";
   }
+
+  // Aggiorna UI (sia contatori sia pannello dx)
+  updateUI();
+  updateDealerCard();
+  updateRightSide();
+
+  console.log(`🃏 addCard: aggiunta carta ${card} al box ${recipientIndex + 1}`);
 }
+
 
 
  dealerCard = dealerCard || null;
@@ -835,6 +880,8 @@ function totalValue(cards) {
 
 // === computeSuggestionForBox aggiornato ===
 function computeSuggestionForBox(boxIndex) {
+  console.log("computeSuggestionForBox inputs:", { boxIndex, boxCards: box.cards, dealerCardText, deckClone });
+
   // sicurezza: assicurati che dealerCard sia disponibile (variabile globale)
   if (!dealerCard) {
     console.warn(`computeSuggestionForBox: dealerCard non definito, skip calcolo per box ${boxIndex}`);
