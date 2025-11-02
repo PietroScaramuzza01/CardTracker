@@ -1003,22 +1003,88 @@ function practicalSuggestion(evResult, tc, playerCards, dealerCard) {
 
 
 // === computeSuggestionForBox aggiornato ===
-function computeSuggestionForBox(boxIndex) {
-  
+// --------- UI: aggiorna il pannello suggerimento per un singolo box ----------
+function updateSuggestionUI(boxIndex, res, tc, stats = {}) {
+  // boxIndex: indice numerico (0-based)
+  const boxEl = playerBoxes[boxIndex];
+  if (!boxEl) return;
 
-  // sicurezza: dealerCard deve essere nota
+  const suggestionEl = boxEl.querySelector('.suggestion');
+  if (!suggestionEl) return;
+
+  // Clear previous content
+  suggestionEl.innerHTML = '';
+
+  // Action + EV + TC line
+  const actionLine = document.createElement('div');
+  actionLine.className = 'suggestion-action';
+  const actionText = (res?.action) ? res.action : "—";
+  const evText = (typeof res?.ev === 'number') ? res.ev.toFixed(3) : '?';
+  const tcText = (typeof tc === 'number') ? parseFloat(tc).toFixed(2) : tc;
+  actionLine.innerHTML = `<strong>${actionText}</strong> <small>(EV: ${evText} | TC: ${tcText})</small>`;
+  suggestionEl.appendChild(actionLine);
+
+  // Percentuali / probabilità (se fornite in stats)
+  const statsObj = stats || {};
+  const keys = Object.keys(statsObj);
+  if (keys.length) {
+    const statsLine = document.createElement('div');
+    statsLine.className = 'suggestion-stats';
+    statsLine.style.marginTop = '6px';
+    statsLine.style.fontSize = '0.85em';
+
+    // converti {hit:0.22, stand:0.33,...} in "Hit: 22.0% | Stand: 33.0% | ..."
+    const parts = keys.map(k => {
+      const val = statsObj[k];
+      const pct = (typeof val === 'number') ? (val * 100).toFixed(1) + '%' : String(val);
+      // Capitalize first letter for display
+      return `${k.charAt(0).toUpperCase() + k.slice(1)}: ${pct}`;
+    });
+    statsLine.textContent = parts.join(' | ');
+    suggestionEl.appendChild(statsLine);
+  }
+
+  // Keep small debug line with underlying hand (optional)
+  const debugLine = document.createElement('div');
+  debugLine.className = 'suggestion-debug';
+  debugLine.style.fontSize = '0.75em';
+  debugLine.style.marginTop = '4px';
+  debugLine.style.color = '#999';
+  const box = boxes[boxIndex];
+  debugLine.textContent = box && box.cards ? `Hand: [${box.cards.join(', ')}]` : '';
+  suggestionEl.appendChild(debugLine);
+}
+
+// --------- computeSuggestionForBox (rivista) ----------
+function computeSuggestionForBox(boxIndex) {
+  // sicurezza: assicurati che dealerCard sia disponibile (variabile globale)
   if (!dealerCard) {
     console.warn(`computeSuggestionForBox: dealerCard non definito, skip calcolo per box ${boxIndex}`);
+    // aggiorna UI a vuoto per evitare stale display
+    updateSuggestionUI(boxIndex, { action: "—", ev: 0 }, 0, {});
     return { action: "—", ev: 0, trueCount: 0 };
   }
 
   const dealerCardText = dealerCard;
   if (!dealerCardText || dealerCardText === "—") {
+    updateSuggestionUI(boxIndex, { action: "—", ev: 0 }, 0, {});
     return { action: "—", ev: 0, trueCount: 0 };
   }
 
   const box = boxes[boxIndex];
-  if (!box || !box.active || !box.owner || !box.cards || box.cards.length === 0) {
+  if (!box) {
+    console.warn(`computeSuggestionForBox: box ${boxIndex} non trovato`);
+    return { action: "—", ev: 0, trueCount: 0 };
+  }
+
+  // se il box non è attivo o non è di tua proprietà, mostra placeholder
+  if (!box.active || !box.owner) {
+    updateSuggestionUI(boxIndex, { action: "—", ev: 0 }, 0, {});
+    return { action: "—", ev: 0, trueCount: 0 };
+  }
+
+  if (!box.cards || box.cards.length === 0) {
+    updateSuggestionUI(boxIndex, { action: "—", ev: 0 }, 0, {});
     return { action: "—", ev: 0, trueCount: 0 };
   }
 
@@ -1026,109 +1092,41 @@ function computeSuggestionForBox(boxIndex) {
     const decksRemaining = remainingCards / 52;
     const tc = decksRemaining > 0 ? runningCount / decksRemaining : 0;
     const deckClone = cloneDeck(deckState);
+
+    // canDouble se mano iniziale di 2 carte
     const canDouble = box.cards.length === 2;
 
+    // calcola res con evaluateBestAction (rimane la funzione pesante)
     const res = evaluateBestAction(box.cards.slice(), deckClone, dealerCardText, canDouble, true, false);
-    if (!res || !res.action || isNaN(res.ev)) {
+
+    if (!res || typeof res.ev === 'undefined') {
       console.warn("computeSuggestionForBox: risultato non valido", res);
+      updateSuggestionUI(boxIndex, { action: "—", ev: 0 }, tc, {});
       return { action: "—", ev: 0, trueCount: tc };
     }
 
+    // smartAction tramite practicalSuggestion
     const smartAction = practicalSuggestion(res, tc, box.cards, dealerCardText);
-    const suggestion = { action: smartAction, ev: res.ev, trueCount: tc };
 
-    // 🧠 LOG DETTAGLIATO
-    console.log("computeSuggestionForBox inputs:", {
-      boxIndex,
-      boxCards: box.cards,
-      dealerCardText,
-      result: res,
-      trueCount: tc.toFixed(2),
-    });
-    console.log(`📊 Box ${boxIndex + 1} probabilità:`, res.stats);
+    // STATISTICS (optional): se in futuro il tuo evaluator restituisce le probabilità,
+    // metti qui res.stats. Per ora proviamo a stimare una "probabilities" object se presente in res.
+    // Se res.stats non esiste, lasceremo stats vuoto.
+    const stats = res.stats || {};
 
-updateSuggestionUI(boxIndex, { 
-  action: smartAction, 
-  ev: res.ev, 
-  stats: res.stats || {}, 
-  trueCount: tc 
-});
-    console.log(
-      `💡 Box ${boxIndex + 1} → Suggerimento: ${smartAction} | EV: ${res.ev?.toFixed(3)} | TC: ${tc.toFixed(2)}`
-    );
+    // Aggiorna UI del box con action/EV/TC e stats se esistono
+    updateSuggestionUI(boxIndex, { action: smartAction, ev: res.ev }, tc, stats);
 
-    // 🧮 Stampa tabella probabilità (se presenti)
-    if (res.probs) console.table(res.probs);
+    // aggiorna anche l'oggetto box.suggestion in memoria (testuale)
+    box.suggestion = smartAction;
 
-    // 🎯 Aggiorna UI
-    const boxEl = document.querySelectorAll(".player-box")[boxIndex];
-    if (boxEl) {
-      if (res.probs) {
-        boxEl.querySelector(".hit-percent").textContent = `${(res.probs.hit * 100).toFixed(1)}%`;
-        boxEl.querySelector(".stand-percent").textContent = `${(res.probs.stand * 100).toFixed(1)}%`;
-        boxEl.querySelector(".double-percent").textContent = `${(res.probs.double * 100).toFixed(1)}%`;
-        boxEl.querySelector(".split-percent").textContent = `${(res.probs.split * 100).toFixed(1)}%`;
-      }
-      const suggestionText = boxEl.querySelector(".suggestion");
-      if (suggestionText) {
-        suggestionText.lastChild.textContent = ` ${smartAction}`;
-      }
-    }
-
-    return suggestion;
+    // ritorna dettagli utili a chi chiama
+    return { action: smartAction, ev: res.ev, trueCount: tc, stats };
   } catch (err) {
     console.error("computeSuggestionForBox: errore nel calcolo EV", err);
+    updateSuggestionUI(boxIndex, { action: "—", ev: 0 }, 0, {});
     return { action: "—", ev: 0, trueCount: 0 };
   }
 }
-function updateSuggestionUI(boxIndex, res) {
-  const boxEl = document.querySelectorAll('.player-box')[boxIndex];
-  if (!boxEl) return;
-
-
-  const ev = (evResult?.ev ?? 0).toFixed(3);
-  const tc = parseFloat(trueCount).toFixed(2);
-
-  // Costruisci la stringa delle percentuali
-  let statsHTML = "";
-  if (evResult?.stats) {
-    statsHTML = Object.entries(evResult.stats)
-      .map(([action, prob]) => `${action}: ${(prob * 100).toFixed(1)}%`)
-      .join(" | ");
-  }
-
-  boxEl.innerHTML = `
-    <div><b>Suggerimento:</b> ${suggestion}</div>
-    <div><small>EV: ${ev} | TC: ${tc}</small></div>
-    ${statsHTML ? `<div class="stats">${statsHTML}</div>` : ""}
-  `;
-  const suggText = boxEl.querySelector('.suggestion-text');
-  const hitEl = boxEl.querySelector('.hit-percent');
-  const standEl = boxEl.querySelector('.stand-percent');
-  const dblEl = boxEl.querySelector('.double-percent');
-  const splitEl = boxEl.querySelector('.split-percent');
-
-  // 🎯 Aggiorna testo principale
-  const evValue = res.ev !== undefined ? res.ev.toFixed(3) : "?";
-  suggText.textContent = `${res.action || "—"} (EV: ${evValue})`;
-
-  // 📊 Aggiorna percentuali se presenti
-  if (res.stats) {
-    hitEl.textContent = res.stats.hit ? `${(res.stats.hit * 100).toFixed(1)}%` : "-";
-    standEl.textContent = res.stats.stand ? `${(res.stats.stand * 100).toFixed(1)}%` : "-";
-    dblEl.textContent = res.stats.dbl ? `${(res.stats.dbl * 100).toFixed(1)}%` : "-";
-    splitEl.textContent = res.stats.split ? `${(res.stats.split * 100).toFixed(1)}%` : "-";
-  }
-
-  // 🎨 Cambia colore sfondo in base all’EV
-  boxEl.style.transition = "background-color 0.4s ease";
-  if (res.ev > 0.2) boxEl.style.backgroundColor = "rgba(0, 200, 0, 0.15)";
-  else if (res.ev < -0.2) boxEl.style.backgroundColor = "rgba(200, 0, 0, 0.15)";
-  else boxEl.style.backgroundColor = "rgba(255, 215, 0, 0.15)";
-
-  console.log(`📊 Box ${boxIndex + 1} probabilità:`, res.stats);
-}
-
 
 
 
