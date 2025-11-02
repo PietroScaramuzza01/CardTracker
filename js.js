@@ -7,7 +7,7 @@ window.addEventListener("load", () => {
   if (typeof resetGame === "function") resetGame();
   console.log("🔄 Stato azzerato all'avvio");
 
-  console.log("V.J.S. 0.0.5");
+  console.log("V.J.S. 0.0.6");
 });
 document.getElementById("clear-storage").addEventListener("click", () => {
   localStorage.removeItem("cardTrackerState");
@@ -38,6 +38,9 @@ let drawnCards = []; // storico tutte carte inserite in ordine
 let deckState = {};  // { "A":n, "2":n, ... "K":n }
 // storico delle assegnazioni per gestire undo correttamente
 let assignmentHistory = []; // elementi: { card: "10", recipient: idx | "DEALER", phase: "initial"|"manual" }
+let currentActiveBoxIndex = null;
+
+let selectedBoxIndex = null; // impostata quando premi “Aggiorna” su un box
 
 let boxes = Array.from({length:7},(_,i)=>({
   id: i+1,
@@ -75,6 +78,27 @@ const saveBtn = document.getElementById("save");
 
 const playerBoxes = Array.from(document.querySelectorAll(".player-box"));
 const closeRoundBtn = document.getElementById("close-round");
+
+// --- COLLEGA I PULSANTI "AGGIORNA" AI BOX ---
+document.querySelectorAll('.player-box').forEach((boxEl, index) => {
+  const btn = boxEl.querySelector('.update-suggestion');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      selectBoxForUpdate(index);
+      highlightSelectedBox(index);
+    });
+  }
+});
+
+// --- FUNZIONE DI EVIDENZIAZIONE VISIVA DEL BOX SELEZIONATO ---
+function highlightSelectedBox(index) {
+  document.querySelectorAll('.player-box').forEach((b, i) => {
+    b.classList.toggle('selected', i === index);
+  });
+}
+
+
+
 
 // We'll dynamically add export/import buttons next to saveBtn
 let exportBtn, importBtn, importFileInput;
@@ -277,8 +301,13 @@ function updateRightSide() {
 }
 
 
-// --- AGGIUNGI CARTA ---
-// Sostituisci la tua funzione addCard con questa versione che aggiorna anche deckState / runningCount / drawnCards
+
+// esempio funzione di selezione (da chiamare nel click del pulsante "Aggiorna")
+function selectBoxForUpdate(index) {
+  selectedBoxIndex = index;
+  console.log(`🎯 Box ${index + 1} selezionato per aggiornamento manuale`);
+}
+
 function addCard(card) {
   if (!card) {
     console.warn("⚠️ addCard: nessuna carta fornita");
@@ -295,7 +324,6 @@ function addCard(card) {
   }
 
   // --- AGGIORNA STATO DEL MAZZO (prima di assegnare) ---
-  // se deckState non è inizializzato, inizializzalo per sicurezza
   if (!deckState || typeof deckState[card] === "undefined") {
     // ricrea stato mazzo se necessario
     cardValues.forEach(c => { if (!deckState[c]) deckState[c] = 4 * numDecks; });
@@ -314,61 +342,71 @@ function addCard(card) {
   drawnCards.push(card);
   lastCardEl.textContent = card;
 
-  // registra assignment generale (serve per undo)
-  // lo spostiamo in assignmentHistory dentro assignNextInitialCard o nelle assegnazioni manuali:
-  // ma qui aggiungiamo la carta all'array drawnCards comunque.
-
-  // 🔹 1. Se siamo nella fase iniziale, distribuiamo carte base
+  // 🔹 1. Fase iniziale: distribuzione automatica
   if (!isInitialDistributionComplete()) {
     assignNextInitialCard(card);
-    // dopo aver assegnato iniziali aggiorna UI destra e sinistra
-    updateUI();
-    updateDealerCard();
-    updateRightSide();
     return;
   }
 
-  // 🔹 2. Fase di gioco normale: se è stato impostato un nextCardBoxId (manualmente) usa quello,
-  // altrimenti usa il box attivo + di proprietà
+  // 🔹 2. Fase di gioco: assegna solo se è stato selezionato un box
   let recipientIndex = null;
-  if (nextCardBoxId) {
-    recipientIndex = nextCardBoxId - 1;
-    nextCardBoxId = null; // consuma la richiesta
-  } else {
-    const activeBox = boxes.find(b => b.active && b.owner);
-    if (activeBox) recipientIndex = boxes.indexOf(activeBox);
-  }
 
-  if (recipientIndex === null) {
-    console.warn("addCard: nessun box destinatario trovato, carta registrata ma non assegnata ai box:", card);
-    // mantieni comunque l'aggiornamento dei conteggi a destra
+  // se è stato selezionato manualmente un box, usalo
+  if (selectedBoxIndex !== null && boxes[selectedBoxIndex]) {
+    recipientIndex = selectedBoxIndex;
+  }
+  // fallback opzionale: se non è selezionato nessun box ma è impostato nextCardBoxId
+  else if (nextCardBoxId) {
+    recipientIndex = nextCardBoxId - 1;
+    nextCardBoxId = null;
+  }
+  // altrimenti, nessun box selezionato ⇒ non assegnare
+  else {
+    console.warn("⚠️ addCard: nessun box selezionato, la carta non sarà assegnata");
     updateUI();
     updateDealerCard();
     updateRightSide();
     return;
   }
 
-  // assegna la carta al box destinatario
-  boxes[recipientIndex].cards.push(card);
+  const box = boxes[recipientIndex];
+  if (!box) {
+    console.warn(`⚠️ addCard: box ${recipientIndex + 1} inesistente`);
+    return;
+  }
+
+  if (!box.active) {
+    console.warn(`⚠️ addCard: box ${recipientIndex + 1} non attivo`);
+    return;
+  }
+
+  if (!box.owner) {
+    console.warn(`⚠️ addCard: box ${recipientIndex + 1} non è di tua proprietà`);
+    return;
+  }
+
+  // assegna la carta
+  box.cards.push(card);
   assignmentHistory.push({
     card,
     recipient: recipientIndex,
     phase: "manual",
   });
 
-  // aggiorna suggerimento solo se il dealer è noto e il box è di tua proprietà
-  if (boxes[recipientIndex].owner && dealerCard) {
+  // aggiorna suggerimento solo se dealerCard è noto
+  if (dealerCard) {
     const suggestionResult = computeSuggestionForBox(recipientIndex) || {};
-    boxes[recipientIndex].suggestion = suggestionResult.action || "—";
+    box.suggestion = suggestionResult.action || "—";
   }
 
-  // Aggiorna UI (sia contatori sia pannello dx)
+  // aggiorna la UI
   updateUI();
   updateDealerCard();
   updateRightSide();
 
   console.log(`🃏 addCard: aggiunta carta ${card} al box ${recipientIndex + 1}`);
 }
+
 
 
 
@@ -511,18 +549,6 @@ function drawInitialCards() {
   }
 }
 
-// EV ENGINE and evaluateBestAction ... (unchanged)
-// For brevity in this message I keep the EV engine code identical to your previous working version.
-// Paste your existing dealerFinalProbabilities / standEV / evaluateBestAction / computeSuggestionForBox here.
-// (Keep the same functions you already had — ensure they are present in the file)
-
-/// --- placeholder: KEEP your existing EV engine and computeSuggestionForBox functions here ---
-/// (Do not remove them; they are required. In the file you should include the full implementations.)
-
-// function dealerFinalProbabilities(...) { ... }
-// function standEV(...) { ... }
-// function evaluateBestAction(...) { ... }
-// function computeSuggestionForBox(...) { ... }
 
 // --- UPDATE SUGGESTIONS helper ---
 function updateAllSuggestions() {
@@ -880,7 +906,8 @@ function totalValue(cards) {
 
 // === computeSuggestionForBox aggiornato ===
 function computeSuggestionForBox(boxIndex) {
-  
+  console.log("computeSuggestionForBox inputs:", { boxIndex, boxCards: box.cards, dealerCardText, deckClone });
+
   // sicurezza: assicurati che dealerCard sia disponibile (variabile globale)
   if (!dealerCard) {
     console.warn(`computeSuggestionForBox: dealerCard non definito, skip calcolo per box ${boxIndex}`);
@@ -896,8 +923,9 @@ if (!dealerCardText || dealerCardText === "—") {
 
 
   const box = boxes[boxIndex];
- 
 
+  // 🔧 ora possiamo loggare in sicurezza
+  
   if (!box || !box.active || !box.owner) return { action: "—", ev: 0, trueCount: 0 };
 
   if (!box.cards || box.cards.length === 0) {
@@ -916,13 +944,19 @@ if (!dealerCardText || dealerCardText === "—") {
       console.warn("computeSuggestionForBox: risultato non valido", res);
       return { action: "—", ev: 0, trueCount: tc };
     }
- console.log("computeSuggestionForBox inputs:", { boxIndex, boxCards: box.cards, dealerCardText, deckClone });
+console.log("computeSuggestionForBox inputs:", {
+    boxIndex,
+    boxCards: box.cards,
+    dealerCardText,
+    deckClone: cloneDeck(deckState),
+  });
     const smartAction = practicalSuggestion(res, tc, box.cards, dealerCardText);
     return { action: smartAction, ev: res.ev, trueCount: tc };
   } catch (err) {
     console.error("computeSuggestionForBox: errore nel calcolo EV", err);
     return { action: "—", ev: 0, trueCount: 0 };
   }
+  
 }
 
 

@@ -337,3 +337,7 @@ th, td {
 .upload-btn:hover {
   background: #0056b3;
 }
+.player-box.selected {
+  border: 3px solid #fb0404; /* verde acceso */
+  box-shadow: 0 0 10px rgba(0, 200, 83, 0.6);
+}
