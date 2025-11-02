@@ -936,45 +936,46 @@ function practicalSuggestion(evResult, tc, playerCards, dealerCard) {
 
   if (!evResult || !evResult.action || isNaN(evResult.ev)) return "—";
 
+  const EV_THRESHOLD = 0.25;
   const HIGH_TC = 2.0;
+  const EXTREME_TC = 8.0;
   const LOW_TC = -2.0;
+
   const isSoft = playerCards.includes("A") && totalValue(playerCards) <= 21;
 
-  let action = evResult.action;
+  // 1️⃣ EV troppo basso → comportamento prudente
+  if (evResult.ev < EV_THRESHOLD) return "Follow Base";
 
-  // 💡 Se EV è molto basso ma è comunque la miglior mossa, non forzare "Follow Base"
-  if (evResult.ev < -0.8 && action !== "Stand") {
-    console.warn("⚠️ EV molto negativo, ma mantengo l’azione suggerita:", action);
+  // 2️⃣ EV medio ma conteggio basso → prudenza per Double/Split
+  if (tc < LOW_TC && (evResult.action === "Double" || evResult.action === "Split")) {
+    return "Follow Base";
   }
 
-  // 💥 True Count alto → enfatizza doppi o split forti
-  if (tc > HIGH_TC && evResult.ev > 0.5 && (action === "Double" || action === "Split")) {
-    action += " 💥";
+  // 3️⃣ EV buono e TC alto → incentiva mosse forti
+  if (tc > HIGH_TC && evResult.ev > 0.5) {
+    if (evResult.action === "Double" || evResult.action === "Split") {
+      return "Strategy Override";
+    }
   }
 
-  // 🧊 True Count basso → prudenza con doppi e split
-  if (tc < LOW_TC && (action === "Double" || action === "Split")) {
-    action = "Hit";
+  // 4️⃣ Conteggio estremo → enfatizza l’aggressività (nuovo)
+  if (tc >= EXTREME_TC) {
+    if (evResult.ev > 0.4) {
+      return "Strategy Override";
+    } else if (evResult.ev > 0.2) {
+      return "Deviate Slightly";
+    }
   }
 
-  // 🂡 Mani soft (con Asso): prudenza nei doppi borderline
-  if (isSoft && action === "Double" && evResult.ev < 0.7) {
-    action = "Hit";
+  // 5️⃣ Mani soft → prudenza con double borderline
+  if (isSoft && evResult.action === "Double" && evResult.ev < 0.7) {
+    return "Follow Base";
   }
 
-  // Se la mossa è “Follow Base” ma l’oggetto ha un riferimento a baseAction, usa quello
-  if (action === "Follow Base" && evResult.baseAction) {
-    action = evResult.baseAction;
-  }
-
-  console.log(
-    `💡 Suggestion result → ${action} | EV: ${evResult.ev.toFixed(3)} | TC: ${tc.toFixed(2)} | Hand: [${playerCards.join(
-      ", "
-    )}] vs ${dealerCard}`
-  );
-
-  return action;
+  // 6️⃣ Default
+  return evResult.action;
 }
+
 
 // === computeSuggestionForBox aggiornato ===
 function computeSuggestionForBox(boxIndex) {
