@@ -6,7 +6,7 @@ window.addEventListener("load", () => {
   if (typeof resetGame === "function") resetGame();
   console.log("🔄 Stato azzerato all'avvio");
 
-  console.log("V.J.S. 2");
+  console.log("V.J.S. 0.0.3");
 });
 
 // ===== Card Tracker + Player Boxes + EV engine =====
@@ -331,17 +331,15 @@ function addCard(card) {
 function assignNextInitialCard(card) {
   const activeBoxes = boxes.filter(b => b.active);
 
-  // Se non ci sono box attivi, non fare nulla
-  if (activeBoxes.length === 0) {
-    console.warn("Nessun box attivo per assegnare la carta:", card);
-    return;
-  }
+  // Trova quante carte totali sono state già distribuite
+  const totalCardsDealt = activeBoxes.reduce((sum, b) => sum + b.cards.length, 0);
+  const dealerHasCard = !!dealerCard;
 
-  // --- 1️⃣ Prima carta ai box che ne hanno 0 ---
-  const emptyBox = activeBoxes.find(b => b.cards.length === 0);
-  if (emptyBox) {
-    emptyBox.cards.push(card);
-    const idx = boxes.indexOf(emptyBox);
+  // --- 1° giro: assegna prima carta ai box attivi ---
+  if (totalCardsDealt < activeBoxes.length) {
+    const nextBox = activeBoxes[totalCardsDealt];
+    nextBox.cards.push(card);
+    const idx = boxes.indexOf(nextBox);
     assignmentHistory.push({ card, recipient: idx, phase: "initial" });
     console.log(`🃏 Carta iniziale ${card} → Box ${idx + 1} (prima)`);
     updateRightSide();
@@ -349,8 +347,8 @@ function assignNextInitialCard(card) {
     return;
   }
 
-  // --- 2️⃣ Carta al dealer (una sola volta) ---
-  if (!dealerCard) {
+  // --- 2° giro: assegna carta al dealer se non ancora assegnata ---
+  if (!dealerHasCard) {
     dealerCard = card;
     assignmentHistory.push({ card, recipient: "DEALER", phase: "initial" });
     console.log(`🂠 Carta ${card} → Dealer`);
@@ -360,50 +358,41 @@ function assignNextInitialCard(card) {
     return;
   }
 
-  // --- 3️⃣ Seconda carta ai box che ne hanno solo una ---
-  const oneCardBox = activeBoxes.find(b => b.cards.length === 1);
-  if (oneCardBox) {
-    oneCardBox.cards.push(card);
-    const idx = boxes.indexOf(oneCardBox);
+  // --- 3° giro: assegna seconda carta ai box ---
+  const boxesWithOneCard = activeBoxes.filter(b => b.cards.length === 1);
+  if (boxesWithOneCard.length > 0) {
+    const nextBox = boxesWithOneCard[0];
+    nextBox.cards.push(card);
+    const idx = boxes.indexOf(nextBox);
     assignmentHistory.push({ card, recipient: idx, phase: "initial" });
+    console.log(`🃏 Carta iniziale ${card} → Box ${idx + 1} (seconda)`);
 
-    // Calcola suggerimento solo se è il tuo box
-    if (oneCardBox.owner && dealerCard) {
+    // Ora possiamo calcolare il suggerimento (dealerCard esiste)
+    if (dealerCard) {
       const suggestionResult = computeSuggestionForBox(idx) || {};
-      oneCardBox.suggestion = suggestionResult.action || "—";
+      nextBox.suggestion = suggestionResult.action || "—";
       console.log(
-        `Box ${idx + 1} (Initial) - Carte: [${oneCardBox.cards.join(", ")}], Suggerimento: ${oneCardBox.suggestion}`
-      );
-    } else {
-      console.log(
-        `Box ${idx + 1} (Initial) - Carte: [${oneCardBox.cards.join(", ")}], (no suggestion — not owner)`
+        `Box ${idx + 1} (Initial) - Carte: [${nextBox.cards.join(", ")}], Suggerimento: ${nextBox.suggestion}`
       );
     }
 
+    updateDealerCard();
     updateRightSide();
     checkInitialDistributionComplete();
     return;
   }
 
-  // --- 4️⃣ Tutti hanno 2 carte, distribuzione completa ---
-  const allBoxesHaveTwo = activeBoxes.every(b => b.cards.length >= 2);
-  if (allBoxesHaveTwo && dealerCard) {
-    initialDistributionComplete = true;
-
-    // Attiva automaticamente il primo box di proprietà
-    const firstOwned = boxes.find(b => b.owner);
-    if (firstOwned) {
-      boxes.forEach(b => (b.active = false));
-      firstOwned.active = true;
-      console.log(`🎯 Turno inizia con Box ${boxes.indexOf(firstOwned) + 1}`);
-    }
-
-    updateRightSide();
-    console.log("✅ Distribuzione iniziale completata");
-  } else {
-    console.warn("assignNextInitialCard: no recipient found for", card);
+  // --- Se tutte le carte iniziali sono già state distribuite ---
+  if (dealerCard) {
+    boxes.forEach((b, i) => {
+      if (b.active && b.cards.length >= 2) computeSuggestionForBox(i);
+    });
   }
+
+  console.warn("assignNextInitialCard: nessun destinatario per", card);
 }
+
+
 
 
 
@@ -412,19 +401,46 @@ function assignNextInitialCard(card) {
 
 function checkInitialDistributionComplete() {
   const activeBoxes = boxes.filter(b => b.active);
-  const allBoxesHaveTwo = activeBoxes.every(b => b.cards.length >= 2);
-  if (allBoxesHaveTwo && dealerCard) {
-    initialDistributionComplete = true;
+
+  // Nessun box attivo? Niente da controllare
+  if (activeBoxes.length === 0) {
+    initialDistributionComplete = false;
+    return false;
   }
-   // ✅ Attiva il primo box di proprietà (turno inizia)
-    const firstOwned = boxes.find(b => b.owner);
-    if (firstOwned) {
-      boxes.forEach(b => b.active = false);
-      firstOwned.active = true;
-      console.log(`🎯 Turno inizia con Box ${boxes.indexOf(firstOwned) + 1}`);
-      updateRightSide();
+
+  // Controlla che ogni box attivo abbia due carte
+  const allBoxesHaveTwo = activeBoxes.every(b => b.cards.length >= 2);
+
+  // Controlla che il dealer abbia ricevuto la carta
+  const dealerReady = !!dealerCard;
+
+  // Se tutto è completo, segna la distribuzione iniziale come completa
+  if (allBoxesHaveTwo && dealerReady) {
+    if (!initialDistributionComplete) {
+      console.log("✅ Distribuzione iniziale completata!");
+    }
+    initialDistributionComplete = true;
+
+    // Aggiorna i suggerimenti per tutti i box attivi
+    activeBoxes.forEach((b, i) => {
+      const boxIndex = boxes.indexOf(b);
+      const suggestionResult = computeSuggestionForBox(boxIndex) || {};
+      b.suggestion = suggestionResult.action || "—";
+      console.log(
+        `🎯 Box ${boxIndex + 1} (Ready) - Carte: [${b.cards.join(", ")}], Suggerimento: ${b.suggestion}`
+      );
+    });
+
+    updateDealerCard();
+    updateRightSide();
+    return true;
+  }
+
+  // Se non completo
+  initialDistributionComplete = false;
+  return false;
 }
-}
+
 
 // --- DISTRIBUZIONE INITIAL CARDS (utility) ---
 function drawInitialCards() {
