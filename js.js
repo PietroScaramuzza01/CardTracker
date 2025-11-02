@@ -1104,6 +1104,7 @@ function computeSuggestionForBox(boxIndex) {
       updateSuggestionUI(boxIndex, { action: "—", ev: 0 }, tc, {});
       return { action: "—", ev: 0, trueCount: tc };
     }
+console.log(`📊 Box ${boxIndex + 1} probabilità:`, res.stats);
 
     // smartAction tramite practicalSuggestion
     const smartAction = practicalSuggestion(res, tc, box.cards, dealerCardText);
