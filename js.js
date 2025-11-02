@@ -7,7 +7,7 @@ window.addEventListener("load", () => {
   if (typeof resetGame === "function") resetGame();
   console.log("🔄 Stato azzerato all'avvio");
 
-  console.log("V.J.S. 0.0.7");
+  console.log("V.J.S. 0.0.8");
 });
 document.getElementById("clear-storage").addEventListener("click", () => {
   localStorage.removeItem("cardTrackerState");
@@ -1045,7 +1045,8 @@ function computeSuggestionForBox(boxIndex) {
       result: res,
       trueCount: tc.toFixed(2),
     });
-console.log(`📊 Box ${boxIndex + 1} probabilità:`, res.stats);
+    console.log(`📊 Box ${boxIndex + 1} probabilità:`, res.stats);
+
 updateSuggestionUI(boxIndex, { 
   action: smartAction, 
   ev: res.ev, 
@@ -1084,6 +1085,23 @@ function updateSuggestionUI(boxIndex, res) {
   const boxEl = document.querySelectorAll('.player-box')[boxIndex];
   if (!boxEl) return;
 
+
+  const ev = (evResult?.ev ?? 0).toFixed(3);
+  const tc = parseFloat(trueCount).toFixed(2);
+
+  // Costruisci la stringa delle percentuali
+  let statsHTML = "";
+  if (evResult?.stats) {
+    statsHTML = Object.entries(evResult.stats)
+      .map(([action, prob]) => `${action}: ${(prob * 100).toFixed(1)}%`)
+      .join(" | ");
+  }
+
+  boxEl.innerHTML = `
+    <div><b>Suggerimento:</b> ${suggestion}</div>
+    <div><small>EV: ${ev} | TC: ${tc}</small></div>
+    ${statsHTML ? `<div class="stats">${statsHTML}</div>` : ""}
+  `;
   const suggText = boxEl.querySelector('.suggestion-text');
   const hitEl = boxEl.querySelector('.hit-percent');
   const standEl = boxEl.querySelector('.stand-percent');

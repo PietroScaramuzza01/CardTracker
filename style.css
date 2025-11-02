@@ -301,6 +301,11 @@ th, td {
   margin-bottom: 4px;
 }
 
+.suggestion .stats {
+  font-size: 0.8em;
+  color: #999;
+  margin-top: 4px;
+}
 
 /* Scroll se tanti box */
 .right-side::-webkit-scrollbar {
