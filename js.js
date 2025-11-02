@@ -1004,7 +1004,7 @@ function practicalSuggestion(evResult, tc, playerCards, dealerCard) {
 
 // === computeSuggestionForBox aggiornato ===
 function computeSuggestionForBox(boxIndex) {
-  console.log(`📊 Box ${boxIndex + 1} probabilità:`, res.stats);
+  
 
   // sicurezza: dealerCard deve essere nota
   if (!dealerCard) {
@@ -1045,7 +1045,7 @@ function computeSuggestionForBox(boxIndex) {
       result: res,
       trueCount: tc.toFixed(2),
     });
-
+console.log(`📊 Box ${boxIndex + 1} probabilità:`, res.stats);
 updateSuggestionUI(boxIndex, { 
   action: smartAction, 
   ev: res.ev, 
