@@ -743,8 +743,6 @@ function trueCountBias(deck) {
 const EVAL_CACHE = new Map();
 
 function evaluateBestAction(playerCards, deckStateArg, dealerUpcard, canDouble=true, canSplit=true, afterSplit=false) {
-  const countBias = trueCountBias(deckStateArg);
-
   const key = [handKey(playerCards), deckKey(deckStateArg), dealerUpcard, canDouble?1:0, canSplit?1:0, afterSplit?1:0].join("||");
   if (EVAL_CACHE.has(key)) return EVAL_CACHE.get(key);
 
@@ -757,7 +755,7 @@ function evaluateBestAction(playerCards, deckStateArg, dealerUpcard, canDouble=t
   }
   while (total > 21 && aces > 0) { total -= 10; aces--; }
   if (total > 21) {
-    const r = { ev: -1, action: "Bust" };
+    const r = { ev: -1, action: "Bust", stand_ev: -Infinity, hit_ev: -Infinity, double_ev: -Infinity, split_ev: -Infinity };
     EVAL_CACHE.set(key, r); return r;
   }
 
@@ -766,24 +764,20 @@ function evaluateBestAction(playerCards, deckStateArg, dealerUpcard, canDouble=t
 
   // Stand EV
   const stand_ev = standEV(total, dealerDist);
-  // 🔧 AGGIUNGI subito dopo il calcolo di "total" in evaluateBestAction()
-const isSoft = (aces > 0 && total <= 21);
-const canRealisticallyDouble =
-  canDouble &&
-  !afterSplit &&
-  playerCards.length === 2 &&
-  (
-    // ✅ Double solo su 9, 10, 11 (hard)
-    (!isSoft && total >= 9 && total <= 11)
-    ||
-    // ✅ Double su A,2..A,7 (soft 13–18)
-    (isSoft && total >= 13 && total <= 18)
-  );
+
+  const isSoft = (aces > 0 && total <= 21);
+  const canRealisticallyDouble =
+    canDouble &&
+    !afterSplit &&
+    playerCards.length === 2 &&
+    (
+      (!isSoft && total >= 9 && total <= 11) ||
+      (isSoft && total >= 13 && total <= 18)
+    );
 
   // Double EV (draw one then stand) - payoff *2
   let double_ev = -Infinity;
-if (canRealisticallyDouble) {
-
+  if (canRealisticallyDouble) {
     const tot = deckTotal(deckStateArg);
     if (tot > 0) {
       let acc = 0;
@@ -799,7 +793,6 @@ if (canRealisticallyDouble) {
           else if (TEN_VALUES.includes(cc)) nv+=10;
           else nv+=parseInt(cc);
         }
-        // include new card cc
         if (card==="A"){ nv+=11; na++; } else if (TEN_VALUES.includes(card)) nv+=10; else nv+=parseInt(card);
         while (nv>21 && na>0){ nv-=10; na--; }
         const sub = standEV(nv, dealerDist);
@@ -811,35 +804,25 @@ if (canRealisticallyDouble) {
   }
 
   // Hit EV (draw one, then make best decision)
-  // Hit EV (draw one, then make best decision)
-let hit_ev = -Infinity;
-{
-  const tot = deckTotal(deckStateArg);
-  if (tot > 0) {
-    let acc = 0;
-
-    // ✅ aggiungi questo
-    const countBias = trueCountBias(deckStateArg);
-
-    for (const card of Object.keys(deckStateArg)) {
-      const cnt = deckStateArg[card];
-      if (cnt <= 0) continue;
-
-      // ✅ modifica questa linea
-      const prob = (cnt / tot) * countBias[card];
-
-      deckStateArg[card]--;
-      const newHand = playerCards.concat([card]);
-      const sub = evaluateBestAction(newHand, deckStateArg, dealerUpcard, false, false, afterSplit);
-      deckStateArg[card]++;
-      acc += prob * sub.ev;
+  let hit_ev = -Infinity;
+  {
+    const tot = deckTotal(deckStateArg);
+    if (tot > 0) {
+      let acc = 0;
+      for (const card of Object.keys(deckStateArg)) {
+        const cnt = deckStateArg[card];
+        if (cnt <= 0) continue;
+        const prob = cnt / tot;
+        deckStateArg[card]--;
+        const newHand = playerCards.concat([card]);
+        // We disallow doubling after a hit in recursion (common simplification)
+        const sub = evaluateBestAction(newHand, deckStateArg, dealerUpcard, false, false, afterSplit);
+        deckStateArg[card]++;
+        acc += prob * sub.ev;
+      }
+      hit_ev = acc;
     }
-
-    // normalizza per evitare che le probabilità sommino a > 1
-    hit_ev = acc / Object.keys(deckStateArg).length;
   }
-}
-
 
   // Split EV (if pair and allowed)
   let split_ev = -Infinity;
@@ -851,83 +834,49 @@ let hit_ev = -Infinity;
     if (isPair) {
       const tot = deckTotal(deckStateArg);
       if (tot > 1) {
-              let acc = 0;
-      // calcola lo split più realistico in base alla distribuzione residua del mazzo
-      for (const card1 of Object.keys(deckStateArg)) {
-        const cnt1 = deckStateArg[card1];
-        if (cnt1 <= 0) continue;
-        const p1 = cnt1 / tot;
-        deckStateArg[card1]--;
-
-        for (const card2 of Object.keys(deckStateArg)) {
-          const cnt2 = deckStateArg[card2];
-          if (cnt2 <= 0) continue;
-          const p2 = cnt2 / (tot - 1);
-
-          // Calcolo EV per entrambe le mani dopo lo split
-          const ev1 = evaluateBestAction([a, card1], deckStateArg, dealerUpcard, true, false, true).ev;
-          const ev2 = evaluateBestAction([b, card2], deckStateArg, dealerUpcard, true, false, true).ev;
-
-          acc += p1 * p2 * ((ev1 + ev2) / 2);
+        let acc = 0;
+        for (const card1 of Object.keys(deckStateArg)) {
+          const cnt1 = deckStateArg[card1];
+          if (cnt1 <= 0) continue;
+          const p1 = cnt1 / tot;
+          deckStateArg[card1]--;
+          for (const card2 of Object.keys(deckStateArg)) {
+            const cnt2 = deckStateArg[card2];
+            if (cnt2 <= 0) continue;
+            const p2 = cnt2 / (tot - 1);
+            const ev1 = evaluateBestAction([a, card1], deckStateArg, dealerUpcard, true, false, true).ev;
+            const ev2 = evaluateBestAction([b, card2], deckStateArg, dealerUpcard, true, false, true).ev;
+            acc += p1 * p2 * ((ev1 + ev2) / 2);
+          }
+          deckStateArg[card1]++;
         }
-
-        deckStateArg[card1]++;
-      }
-      split_ev = acc;
-
+        split_ev = acc;
       }
     }
   }
-  
 
+  // choose best option
+  const opts = [{action:"Stand", ev:stand_ev}, {action:"Hit", ev:hit_ev}];
+  if (double_ev !== -Infinity) opts.push({action:"Double", ev:double_ev});
+  if (split_ev !== -Infinity) opts.push({action:"Split", ev:split_ev});
 
- // choose best option
-const opts = [
-  { action: "Stand", ev: stand_ev },
-  { action: "Hit", ev: hit_ev }
-];
-console.log("🎯 EV check", {
-  hand: playerCards,
-  dealerUpcard,
-  stand_ev,
-  hit_ev,
-  double_ev,
-  split_ev,
-  total
-});
+  let best = opts[0];
+  for (const o of opts) if (o.ev > best.ev) best = o;
 
-if (double_ev !== -Infinity) opts.push({ action: "Double", ev: double_ev });
-if (split_ev !== -Infinity) opts.push({ action: "Split", ev: split_ev });
+  const result = {
+    ev: best.ev,
+    action: best.action,
+    // ritorniamo anche i singoli EV per poter normalizzare/produrre stats
+    stand_ev,
+    hit_ev,
+    double_ev,
+    split_ev
+  };
 
-// trova azione con EV più alto
-let best = opts[0];
-for (const o of opts) if (o.ev > best.ev) best = o;
-
-// ⚡ Calcola distribuzione percentuale di EV relativi
-// Normalizziamo rispetto alla somma positiva (solo per visualizzare)
-const evValues = opts.map(o => Math.max(o.ev, 0)); // ignora valori negativi
-const totalPos = evValues.reduce((a, b) => a + b, 0);
-let stats = {};
-if (totalPos > 0) {
-  for (const o of opts) {
-    stats[o.action.toLowerCase()] = Math.max(o.ev, 0) / totalPos;
-  }
-} else {
-  // fallback se tutti negativi: distribuzione uniforme
-  for (const o of opts) stats[o.action.toLowerCase()] = 1 / opts.length;
+  EVAL_CACHE.set(key, result);
+  return result;
 }
 
-// ✅ includi tutto nel risultato
-const result = {
-  ev: best.ev,
-  action: best.action,
-  stats
-};
-
-EVAL_CACHE.set(key, result);
-return result;
-
-}
 
 // === API helper: practicalSuggestion intelligente ===
 function practicalSuggestion(evResult, tc, playerCards, dealerCard) {
@@ -1095,42 +1044,48 @@ function updateSuggestionUI(boxIndex, res, tc, stats = {}) {
 }
 // 🔹 Normalizza EV in percentuali proporzionali (0–1)
 function normalizeEV(evResult) {
-  if (!evResult) return { stand: 0.33, hit: 0.33, double: 0.33 };
+  if (!evResult) return { stand: 0.33, hit: 0.33, double: 0.33, split: 0 };
 
   const evs = {
-    stand: evResult.stand_ev ?? -Infinity,
-    hit: evResult.hit_ev ?? -Infinity,
-    double: evResult.double_ev ?? -Infinity,
-    split: evResult.split_ev ?? -Infinity,
+    stand: Number.isFinite(evResult.stand_ev) ? evResult.stand_ev : -Infinity,
+    hit:   Number.isFinite(evResult.hit_ev)   ? evResult.hit_ev   : -Infinity,
+    double: Number.isFinite(evResult.double_ev) ? evResult.double_ev : -Infinity,
+    split:  Number.isFinite(evResult.split_ev)  ? evResult.split_ev  : -Infinity,
   };
 
   // Filtra solo valori finiti
   const valid = Object.entries(evs).filter(([_, v]) => Number.isFinite(v));
-  if (!valid.length) return { stand: 0.33, hit: 0.33, double: 0.33 };
+  if (!valid.length) return { stand: 0.33, hit: 0.33, double: 0.33, split: 0 };
 
-  // Calcola min e max
+  // min / max
   const min = Math.min(...valid.map(([_, v]) => v));
   const max = Math.max(...valid.map(([_, v]) => v));
   const spread = max - min;
 
   const normalized = {};
-  if (spread < 1e-6) {
-    // valori troppo vicini → 1 per la migliore, 0 per le altre
-    const bestKey = valid.reduce((a, b) => (b[1] > a[1] ? b : a))[0];
-    for (const [k] of valid) normalized[k] = (k === bestKey ? 1 : 0);
+  if (spread < 1e-9) {
+    // tutti uguali -> assegna 1 alla migliore (se c'è tie, divide equamente)
+    const bestVal = valid[0][1];
+    const ties = valid.filter(([_,v]) => Math.abs(v - bestVal) < 1e-9).map(([k]) => k);
+    for (const [k] of valid) normalized[k] = ties.includes(k) ? 1 / ties.length : 0;
   } else {
     let total = 0;
     for (const [k, v] of valid) {
       normalized[k] = (v - min) / spread;
       total += normalized[k];
     }
-    for (const k in normalized) normalized[k] = normalized[k] / total;
+    for (const k in normalized) normalized[k] = normalized[k] / (total || 1);
   }
 
-  // Assicurati che esistano tutte le chiavi per la UI
-  const result = { stand: 0, hit: 0, double: 0, split: 0, ...normalized };
-  return result;
+  // Assicura tutte le chiavi presenti
+  return {
+    stand: normalized.stand ?? 0,
+    hit: normalized.hit ?? 0,
+    double: normalized.double ?? 0,
+    split: normalized.split ?? 0
+  };
 }
+
 
 
 
