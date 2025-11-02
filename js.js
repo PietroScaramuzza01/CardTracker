@@ -913,8 +913,7 @@ function totalValue(cards) {
 
 // === computeSuggestionForBox aggiornato ===
 function computeSuggestionForBox(boxIndex) {
-  console.log("computeSuggestionForBox inputs:", { boxIndex, boxCards: box.cards, dealerCardText, deckClone });
-
+ 
   // sicurezza: assicurati che dealerCard sia disponibile (variabile globale)
   if (!dealerCard) {
     console.warn(`computeSuggestionForBox: dealerCard non definito, skip calcolo per box ${boxIndex}`);
