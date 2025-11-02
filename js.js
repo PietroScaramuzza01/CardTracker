@@ -1093,6 +1093,28 @@ function updateSuggestionUI(boxIndex, res, tc, stats = {}) {
   debugLine.textContent = box && box.cards ? `Hand: [${box.cards.join(', ')}]` : '';
   suggestionEl.appendChild(debugLine);
 }
+function normalizeEV(evResult) {
+  const evs = {
+    stand: evResult.stand_ev,
+    hit: evResult.hit_ev,
+    double: evResult.double_ev,
+    split: evResult.split_ev,
+  };
+
+  // Filtra solo quelli finiti
+  const finite = Object.entries(evs).filter(([_, v]) => Number.isFinite(v));
+  if (finite.length === 0) return {};
+
+  // Normalizza in base al valore minimo → tutti positivi
+  const minEV = Math.min(...finite.map(([_, v]) => v));
+  const shifted = finite.map(([k, v]) => [k, v - minEV + 0.00001]);
+  const sum = shifted.reduce((acc, [_, v]) => acc + v, 0);
+
+  const probs = {};
+  for (const [k, v] of shifted) probs[k] = v / sum;
+
+  return probs;
+}
 
 // --------- computeSuggestionForBox (rivista) ----------
 function computeSuggestionForBox(boxIndex) {
@@ -1148,10 +1170,15 @@ console.log(`📊 Box ${boxIndex + 1} probabilità:`, res.stats);
     // smartAction tramite practicalSuggestion
     const smartAction = practicalSuggestion(res, tc, box.cards, dealerCardText);
 
-    // STATISTICS (optional): se in futuro il tuo evaluator restituisce le probabilità,
-    // metti qui res.stats. Per ora proviamo a stimare una "probabilities" object se presente in res.
-    // Se res.stats non esiste, lasceremo stats vuoto.
-    const stats = res.stats || {};
+  // Calcola probabilità derivate dagli EV
+let stats = {};
+if (res && res.stand_ev !== undefined) {
+  stats = normalizeEV(res);
+} else if (res.stats) {
+  stats = res.stats;
+}
+console.log(`📈 EV normalization →`, stats, res);
+
 
     // Aggiorna UI del box con action/EV/TC e stats se esistono
     updateSuggestionUI(boxIndex, { action: smartAction, ev: res.ev }, tc, stats);
