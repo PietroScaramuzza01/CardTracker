@@ -913,27 +913,19 @@ function totalValue(cards) {
 
 // === computeSuggestionForBox aggiornato ===
 function computeSuggestionForBox(boxIndex) {
- 
-  // sicurezza: assicurati che dealerCard sia disponibile (variabile globale)
+  // sicurezza: dealerCard deve essere nota
   if (!dealerCard) {
     console.warn(`computeSuggestionForBox: dealerCard non definito, skip calcolo per box ${boxIndex}`);
     return { action: "—", ev: 0, trueCount: 0 };
   }
 
-  // 🔧 Usa direttamente la variabile globale
-const dealerCardText = dealerCard;
-if (!dealerCardText || dealerCardText === "—") {
-  return { action: "—", ev: 0, trueCount: 0 };
-}
-
+  const dealerCardText = dealerCard;
+  if (!dealerCardText || dealerCardText === "—") {
+    return { action: "—", ev: 0, trueCount: 0 };
+  }
 
   const box = boxes[boxIndex];
-
-  // 🔧 ora possiamo loggare in sicurezza
-  
-  if (!box || !box.active || !box.owner) return { action: "—", ev: 0, trueCount: 0 };
-
-  if (!box.cards || box.cards.length === 0) {
+  if (!box || !box.active || !box.owner || !box.cards || box.cards.length === 0) {
     return { action: "—", ev: 0, trueCount: 0 };
   }
 
@@ -941,28 +933,55 @@ if (!dealerCardText || dealerCardText === "—") {
     const decksRemaining = remainingCards / 52;
     const tc = decksRemaining > 0 ? runningCount / decksRemaining : 0;
     const deckClone = cloneDeck(deckState);
-
     const canDouble = box.cards.length === 2;
-    const res = evaluateBestAction(box.cards.slice(), deckClone, dealerCardText, canDouble, true, false);
 
+    const res = evaluateBestAction(box.cards.slice(), deckClone, dealerCardText, canDouble, true, false);
     if (!res || !res.action || isNaN(res.ev)) {
       console.warn("computeSuggestionForBox: risultato non valido", res);
       return { action: "—", ev: 0, trueCount: tc };
     }
-console.log("computeSuggestionForBox inputs:", {
-    boxIndex,
-    boxCards: box.cards,
-    dealerCardText,
-    deckClone: cloneDeck(deckState),
-  });
+
     const smartAction = practicalSuggestion(res, tc, box.cards, dealerCardText);
-    return { action: smartAction, ev: res.ev, trueCount: tc };
+    const suggestion = { action: smartAction, ev: res.ev, trueCount: tc };
+
+    // 🧠 LOG DETTAGLIATO
+    console.log("computeSuggestionForBox inputs:", {
+      boxIndex,
+      boxCards: box.cards,
+      dealerCardText,
+      result: res,
+      trueCount: tc.toFixed(2),
+    });
+
+    console.log(
+      `💡 Box ${boxIndex + 1} → Suggerimento: ${smartAction} | EV: ${res.ev?.toFixed(3)} | TC: ${tc.toFixed(2)}`
+    );
+
+    // 🧮 Stampa tabella probabilità (se presenti)
+    if (res.probs) console.table(res.probs);
+
+    // 🎯 Aggiorna UI
+    const boxEl = document.querySelectorAll(".player-box")[boxIndex];
+    if (boxEl) {
+      if (res.probs) {
+        boxEl.querySelector(".hit-percent").textContent = `${(res.probs.hit * 100).toFixed(1)}%`;
+        boxEl.querySelector(".stand-percent").textContent = `${(res.probs.stand * 100).toFixed(1)}%`;
+        boxEl.querySelector(".double-percent").textContent = `${(res.probs.double * 100).toFixed(1)}%`;
+        boxEl.querySelector(".split-percent").textContent = `${(res.probs.split * 100).toFixed(1)}%`;
+      }
+      const suggestionText = boxEl.querySelector(".suggestion");
+      if (suggestionText) {
+        suggestionText.lastChild.textContent = ` ${smartAction}`;
+      }
+    }
+
+    return suggestion;
   } catch (err) {
     console.error("computeSuggestionForBox: errore nel calcolo EV", err);
     return { action: "—", ev: 0, trueCount: 0 };
   }
-  
 }
+
 
 
 
