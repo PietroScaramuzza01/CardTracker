@@ -857,6 +857,16 @@ const opts = [
   { action: "Stand", ev: stand_ev },
   { action: "Hit", ev: hit_ev }
 ];
+console.log("🎯 EV check", {
+  hand: playerCards,
+  dealerUpcard,
+  stand_ev,
+  hit_ev,
+  double_ev,
+  split_ev,
+  total
+});
+
 if (double_ev !== -Infinity) opts.push({ action: "Double", ev: double_ev });
 if (split_ev !== -Infinity) opts.push({ action: "Split", ev: split_ev });
 
