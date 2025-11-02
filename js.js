@@ -1120,42 +1120,35 @@ function computeSuggestionForBox(boxIndex) {
   }
 
   try {
-    const decksRemaining = remainingCards / 52;
-    const tc = decksRemaining > 0 ? runningCount / decksRemaining : 0;
-    const deckClone = cloneDeck(deckState);
+  const decksRemaining = remainingCards / 52;
+  const tc = decksRemaining > 0 ? runningCount / decksRemaining : 0;
+  const deckClone = cloneDeck(deckState);
+  const canDouble = box.cards.length === 2;
 
-    const canDouble = box.cards.length === 2;
+  const res = evaluateBestAction(box.cards.slice(), deckClone, dealerCardText, canDouble, true, false);
+  console.log(`📊 Box ${boxIndex + 1} EV check →`, res);
 
-    // 🔹 Calcolo EV della mano
-    const res = evaluateBestAction(box.cards.slice(), deckClone, dealerCardText, canDouble, true, false);
-
-    if (!res || typeof res.ev === 'undefined') {
-      console.warn("computeSuggestionForBox: risultato non valido", res);
-      updateSuggestionUI(boxIndex, { action: "—", ev: 0 }, tc, {});
-      return { action: "—", ev: 0, trueCount: tc };
-    }
-
-    // 🔹 Normalizza EV in percentuali
-    const normalizedStats = normalizeEV(res);
-    console.log(`📊 Box ${boxIndex + 1} EV check →`, res);
-    console.log("📈 EV normalization →", normalizedStats);
-
-    // 🔹 Azione suggerita dal practicalSuggestion
-    const smartAction = practicalSuggestion(res, tc, box.cards, dealerCardText);
-
-    // 🔹 Aggiorna interfaccia
-    updateSuggestionUI(boxIndex, { action: smartAction, ev: res.ev }, tc, normalizedStats);
-
-    // 🔹 Salva il suggerimento
-    box.suggestion = smartAction;
-
-    return { action: smartAction, ev: res.ev, trueCount: tc, stats: normalizedStats };
-
-  } catch (err) {
-    console.error("computeSuggestionForBox: errore nel calcolo EV", err);
-    updateSuggestionUI(boxIndex, { action: "—", ev: 0 }, 0, {});
-    return { action: "—", ev: 0, trueCount: 0 };
+  if (!res || typeof res.ev === 'undefined') {
+    updateSuggestionUI(boxIndex, { action: "—", ev: 0 }, tc, {});
+    return { action: "—", ev: 0, trueCount: tc };
   }
+
+  const normalizedStats = normalizeEV(res);
+  const smartAction = practicalSuggestion(res, tc, box.cards, dealerCardText);
+
+  console.log("📈 EV normalization →", normalizedStats);
+  console.log("🧠 Suggested action:", smartAction);
+
+  updateSuggestionUI(boxIndex, { action: smartAction, ev: res.ev }, tc, normalizedStats);
+  box.suggestion = smartAction;
+
+  return { action: smartAction, ev: res.ev, trueCount: tc, stats: normalizedStats };
+} catch (err) {
+  console.error("computeSuggestionForBox: errore nel calcolo EV", err);
+  updateSuggestionUI(boxIndex, { action: "—", ev: 0 }, 0, {});
+  return { action: "—", ev: 0, trueCount: 0 };
+}
+
 }
 
 
