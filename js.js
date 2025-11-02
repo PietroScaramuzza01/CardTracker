@@ -1104,29 +1104,34 @@ function normalizeEV(evResult) {
     split: evResult.split_ev ?? -Infinity,
   };
 
-  // Filtra solo quelli validi
+  // Filtra solo valori finiti
   const valid = Object.entries(evs).filter(([_, v]) => Number.isFinite(v));
   if (!valid.length) return { stand: 0.33, hit: 0.33, double: 0.33 };
 
-  // Normalizza su range [0,1]
+  // Calcola min e max
   const min = Math.min(...valid.map(([_, v]) => v));
   const max = Math.max(...valid.map(([_, v]) => v));
-  const spread = max - min || 1;
+  const spread = max - min;
 
   const normalized = {};
-  let total = 0;
-  for (const [k, v] of valid) {
-    normalized[k] = (v - min) / spread;
-    total += normalized[k];
+  if (spread < 1e-6) {
+    // valori troppo vicini → 1 per la migliore, 0 per le altre
+    const bestKey = valid.reduce((a, b) => (b[1] > a[1] ? b : a))[0];
+    for (const [k] of valid) normalized[k] = (k === bestKey ? 1 : 0);
+  } else {
+    let total = 0;
+    for (const [k, v] of valid) {
+      normalized[k] = (v - min) / spread;
+      total += normalized[k];
+    }
+    for (const k in normalized) normalized[k] = normalized[k] / total;
   }
 
-  // Porta la somma a 1
-  for (const k in normalized) {
-    normalized[k] = normalized[k] / total;
-  }
-
-  return normalized;
+  // Assicurati che esistano tutte le chiavi per la UI
+  const result = { stand: 0, hit: 0, double: 0, split: 0, ...normalized };
+  return result;
 }
+
 
 
 // --------- computeSuggestionForBox (rivista) ----------
