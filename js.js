@@ -880,8 +880,7 @@ function totalValue(cards) {
 
 // === computeSuggestionForBox aggiornato ===
 function computeSuggestionForBox(boxIndex) {
-  console.log("computeSuggestionForBox inputs:", { boxIndex, boxCards: box.cards, dealerCardText, deckClone });
-
+  
   // sicurezza: assicurati che dealerCard sia disponibile (variabile globale)
   if (!dealerCard) {
     console.warn(`computeSuggestionForBox: dealerCard non definito, skip calcolo per box ${boxIndex}`);
@@ -897,6 +896,8 @@ if (!dealerCardText || dealerCardText === "—") {
 
 
   const box = boxes[boxIndex];
+  console.log("computeSuggestionForBox inputs:", { boxIndex, boxCards: box.cards, dealerCardText, deckClone });
+
   if (!box || !box.active || !box.owner) return { action: "—", ev: 0, trueCount: 0 };
 
   if (!box.cards || box.cards.length === 0) {
