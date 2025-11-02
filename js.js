@@ -722,10 +722,29 @@ function standEV(playerTotal, dealerDist) {
   return ev;
 }
 
+function trueCountBias(deck) {
+  const total = deckTotal(deck);
+  const ratio10 =
+    (deck["10"] + deck["J"] + deck["Q"] + deck["K"]) / total;
+  const bias = {};
+
+  for (const card of Object.keys(deck)) {
+    let factor = 1.0;
+    if (TEN_VALUES.includes(card)) factor = 1.0 + ratio10 * 1.5; // favorisci i 10
+    else if (["2", "3", "4"].includes(card)) factor = 1.0 - ratio10; // penalizza le basse
+    bias[card] = Math.max(0.1, factor);
+  }
+
+  return bias;
+}
+
+
 // recursive evaluator (memoized)
 const EVAL_CACHE = new Map();
 
 function evaluateBestAction(playerCards, deckStateArg, dealerUpcard, canDouble=true, canSplit=true, afterSplit=false) {
+  const countBias = trueCountBias(deckStateArg);
+
   const key = [handKey(playerCards), deckKey(deckStateArg), dealerUpcard, canDouble?1:0, canSplit?1:0, afterSplit?1:0].join("||");
   if (EVAL_CACHE.has(key)) return EVAL_CACHE.get(key);
 
@@ -792,25 +811,35 @@ if (canRealisticallyDouble) {
   }
 
   // Hit EV (draw one, then make best decision)
-  let hit_ev = -Infinity;
-  {
-    const tot = deckTotal(deckStateArg);
-    if (tot > 0) {
-      let acc = 0;
-      for (const card of Object.keys(deckStateArg)) {
-        const cnt = deckStateArg[card];
-        if (cnt <= 0) continue;
-        const prob = cnt / tot;
-        deckStateArg[card]--;
-        const newHand = playerCards.concat([card]);
-        // We disallow doubling after a hit in recursion (common simplification)
-        const sub = evaluateBestAction(newHand, deckStateArg, dealerUpcard, false, false, afterSplit);
-        deckStateArg[card]++;
-        acc += prob * sub.ev;
-      }
-      hit_ev = acc;
+  // Hit EV (draw one, then make best decision)
+let hit_ev = -Infinity;
+{
+  const tot = deckTotal(deckStateArg);
+  if (tot > 0) {
+    let acc = 0;
+
+    // ✅ aggiungi questo
+    const countBias = trueCountBias(deckStateArg);
+
+    for (const card of Object.keys(deckStateArg)) {
+      const cnt = deckStateArg[card];
+      if (cnt <= 0) continue;
+
+      // ✅ modifica questa linea
+      const prob = (cnt / tot) * countBias[card];
+
+      deckStateArg[card]--;
+      const newHand = playerCards.concat([card]);
+      const sub = evaluateBestAction(newHand, deckStateArg, dealerUpcard, false, false, afterSplit);
+      deckStateArg[card]++;
+      acc += prob * sub.ev;
     }
+
+    // normalizza per evitare che le probabilità sommino a > 1
+    hit_ev = acc / Object.keys(deckStateArg).length;
   }
+}
+
 
   // Split EV (if pair and allowed)
   let split_ev = -Infinity;
