@@ -1057,34 +1057,33 @@ function updateSuggestionUI(boxIndex, res) {
   const boxEl = document.querySelectorAll('.player-box')[boxIndex];
   if (!boxEl) return;
 
-  const suggEl = boxEl.querySelector('.suggestion');
-  if (!suggEl) return;
+  const suggText = boxEl.querySelector('.suggestion-text');
+  const hitEl = boxEl.querySelector('.hit-percent');
+  const standEl = boxEl.querySelector('.stand-percent');
+  const dblEl = boxEl.querySelector('.double-percent');
+  const splitEl = boxEl.querySelector('.split-percent');
 
-  // 🎯 Mostra azione consigliata + EV
-  const actionText = `${res.action || "—"} (EV: ${res.ev?.toFixed(3) || "?"})`;
-  suggEl.querySelector("span")?.textContent = actionText;
+  // 🎯 Aggiorna testo principale
+  const evValue = res.ev !== undefined ? res.ev.toFixed(3) : "?";
+  suggText.textContent = `${res.action || "—"} (EV: ${evValue})`;
 
-  // 📊 Mostra percentuali se presenti
+  // 📊 Aggiorna percentuali se presenti
   if (res.stats) {
-    const { hit, stand, dbl, split } = res.stats;
-    boxEl.querySelector('.hit-percent').textContent   = hit   ? `${(hit*100).toFixed(1)}%` : "-";
-    boxEl.querySelector('.stand-percent').textContent = stand ? `${(stand*100).toFixed(1)}%` : "-";
-    boxEl.querySelector('.double-percent').textContent = dbl   ? `${(dbl*100).toFixed(1)}%` : "-";
-    boxEl.querySelector('.split-percent').textContent  = split ? `${(split*100).toFixed(1)}%` : "-";
+    hitEl.textContent = res.stats.hit ? `${(res.stats.hit * 100).toFixed(1)}%` : "-";
+    standEl.textContent = res.stats.stand ? `${(res.stats.stand * 100).toFixed(1)}%` : "-";
+    dblEl.textContent = res.stats.dbl ? `${(res.stats.dbl * 100).toFixed(1)}%` : "-";
+    splitEl.textContent = res.stats.split ? `${(res.stats.split * 100).toFixed(1)}%` : "-";
   }
 
-  // 🎨 Colore dinamico in base all'EV
+  // 🎨 Cambia colore sfondo in base all’EV
   boxEl.style.transition = "background-color 0.4s ease";
-  if (res.ev > 0.2) {
-    boxEl.style.backgroundColor = "rgba(0, 200, 0, 0.15)"; // verde chiaro
-  } else if (res.ev < -0.2) {
-    boxEl.style.backgroundColor = "rgba(200, 0, 0, 0.15)"; // rosso chiaro
-  } else {
-    boxEl.style.backgroundColor = "rgba(255, 215, 0, 0.15)"; // giallo neutro
-  }
+  if (res.ev > 0.2) boxEl.style.backgroundColor = "rgba(0, 200, 0, 0.15)";
+  else if (res.ev < -0.2) boxEl.style.backgroundColor = "rgba(200, 0, 0, 0.15)";
+  else boxEl.style.backgroundColor = "rgba(255, 215, 0, 0.15)";
 
   console.log(`📊 Box ${boxIndex + 1} probabilità:`, res.stats);
 }
+
 
 
 

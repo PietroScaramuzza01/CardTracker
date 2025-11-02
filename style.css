@@ -264,6 +264,7 @@ th, td {
   margin-bottom: 0.3rem;
 }
 
+
 .player-header label {
   font-weight: normal;
   font-size: 0.85rem;
@@ -289,13 +290,17 @@ th, td {
 }
 
 .player-box .suggestion {
-  margin-top: 0.4rem;
-  font-weight: 600;
-  font-size: 0.95rem;
-  color: #fef3c7;
-  text-align: center;
-  min-height: 1.2em;
+  padding: 6px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  margin-top: 5px;
 }
+
+.player-box .suggestion-text {
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
 
 /* Scroll se tanti box */
 .right-side::-webkit-scrollbar {
