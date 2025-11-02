@@ -1093,35 +1093,46 @@ function updateSuggestionUI(boxIndex, res, tc, stats = {}) {
   debugLine.textContent = box && box.cards ? `Hand: [${box.cards.join(', ')}]` : '';
   suggestionEl.appendChild(debugLine);
 }
+// 🔹 Normalizza EV in percentuali proporzionali (0–1)
 function normalizeEV(evResult) {
+  if (!evResult) return { stand: 0.33, hit: 0.33, double: 0.33 };
+
   const evs = {
-    stand: evResult.stand_ev,
-    hit: evResult.hit_ev,
-    double: evResult.double_ev,
-    split: evResult.split_ev,
+    stand: evResult.stand_ev ?? -Infinity,
+    hit: evResult.hit_ev ?? -Infinity,
+    double: evResult.double_ev ?? -Infinity,
+    split: evResult.split_ev ?? -Infinity,
   };
 
-  // Filtra solo quelli finiti
-  const finite = Object.entries(evs).filter(([_, v]) => Number.isFinite(v));
-  if (finite.length === 0) return {};
+  // Filtra solo quelli validi
+  const valid = Object.entries(evs).filter(([_, v]) => Number.isFinite(v));
+  if (!valid.length) return { stand: 0.33, hit: 0.33, double: 0.33 };
 
-  // Normalizza in base al valore minimo → tutti positivi
-  const minEV = Math.min(...finite.map(([_, v]) => v));
-  const shifted = finite.map(([k, v]) => [k, v - minEV + 0.00001]);
-  const sum = shifted.reduce((acc, [_, v]) => acc + v, 0);
+  // Normalizza su range [0,1]
+  const min = Math.min(...valid.map(([_, v]) => v));
+  const max = Math.max(...valid.map(([_, v]) => v));
+  const spread = max - min || 1;
 
-  const probs = {};
-  for (const [k, v] of shifted) probs[k] = v / sum;
+  const normalized = {};
+  let total = 0;
+  for (const [k, v] of valid) {
+    normalized[k] = (v - min) / spread;
+    total += normalized[k];
+  }
 
-  return probs;
+  // Porta la somma a 1
+  for (const k in normalized) {
+    normalized[k] = normalized[k] / total;
+  }
+
+  return normalized;
 }
+
 
 // --------- computeSuggestionForBox (rivista) ----------
 function computeSuggestionForBox(boxIndex) {
-  // sicurezza: assicurati che dealerCard sia disponibile (variabile globale)
   if (!dealerCard) {
     console.warn(`computeSuggestionForBox: dealerCard non definito, skip calcolo per box ${boxIndex}`);
-    // aggiorna UI a vuoto per evitare stale display
     updateSuggestionUI(boxIndex, { action: "—", ev: 0 }, 0, {});
     return { action: "—", ev: 0, trueCount: 0 };
   }
@@ -1138,7 +1149,6 @@ function computeSuggestionForBox(boxIndex) {
     return { action: "—", ev: 0, trueCount: 0 };
   }
 
-  // se il box non è attivo o non è di tua proprietà, mostra placeholder
   if (!box.active || !box.owner) {
     updateSuggestionUI(boxIndex, { action: "—", ev: 0 }, 0, {});
     return { action: "—", ev: 0, trueCount: 0 };
@@ -1154,10 +1164,9 @@ function computeSuggestionForBox(boxIndex) {
     const tc = decksRemaining > 0 ? runningCount / decksRemaining : 0;
     const deckClone = cloneDeck(deckState);
 
-    // canDouble se mano iniziale di 2 carte
     const canDouble = box.cards.length === 2;
 
-    // calcola res con evaluateBestAction (rimane la funzione pesante)
+    // 🔹 Calcolo EV della mano
     const res = evaluateBestAction(box.cards.slice(), deckClone, dealerCardText, canDouble, true, false);
 
     if (!res || typeof res.ev === 'undefined') {
@@ -1165,35 +1174,30 @@ function computeSuggestionForBox(boxIndex) {
       updateSuggestionUI(boxIndex, { action: "—", ev: 0 }, tc, {});
       return { action: "—", ev: 0, trueCount: tc };
     }
-console.log(`📊 Box ${boxIndex + 1} probabilità:`, res.stats);
 
-    // smartAction tramite practicalSuggestion
+    // 🔹 Normalizza EV in percentuali
+    const normalizedStats = normalizeEV(res);
+    console.log(`📊 Box ${boxIndex + 1} EV check →`, res);
+    console.log("📈 EV normalization →", normalizedStats);
+
+    // 🔹 Azione suggerita dal practicalSuggestion
     const smartAction = practicalSuggestion(res, tc, box.cards, dealerCardText);
 
-  // Calcola probabilità derivate dagli EV
-let stats = {};
-if (res && res.stand_ev !== undefined) {
-  stats = normalizeEV(res);
-} else if (res.stats) {
-  stats = res.stats;
-}
-console.log(`📈 EV normalization →`, stats, res);
+    // 🔹 Aggiorna interfaccia
+    updateSuggestionUI(boxIndex, { action: smartAction, ev: res.ev }, tc, normalizedStats);
 
-
-    // Aggiorna UI del box con action/EV/TC e stats se esistono
-    updateSuggestionUI(boxIndex, { action: smartAction, ev: res.ev }, tc, stats);
-
-    // aggiorna anche l'oggetto box.suggestion in memoria (testuale)
+    // 🔹 Salva il suggerimento
     box.suggestion = smartAction;
 
-    // ritorna dettagli utili a chi chiama
-    return { action: smartAction, ev: res.ev, trueCount: tc, stats };
+    return { action: smartAction, ev: res.ev, trueCount: tc, stats: normalizedStats };
+
   } catch (err) {
     console.error("computeSuggestionForBox: errore nel calcolo EV", err);
     updateSuggestionUI(boxIndex, { action: "—", ev: 0 }, 0, {});
     return { action: "—", ev: 0, trueCount: 0 };
   }
 }
+
 
 
 
