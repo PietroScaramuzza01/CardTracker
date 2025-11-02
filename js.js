@@ -7,7 +7,7 @@ window.addEventListener("load", () => {
   if (typeof resetGame === "function") resetGame();
   console.log("🔄 Stato azzerato all'avvio");
 
-  console.log("V.J.S. 0.0.6");
+  console.log("V.J.S. 0.0.7");
 });
 document.getElementById("clear-storage").addEventListener("click", () => {
   localStorage.removeItem("cardTrackerState");
@@ -1019,6 +1019,12 @@ function computeSuggestionForBox(boxIndex) {
       trueCount: tc.toFixed(2),
     });
 
+updateSuggestionUI(boxIndex, { 
+  action: smartAction, 
+  ev: res.ev, 
+  stats: res.stats || {}, 
+  trueCount: tc 
+});
     console.log(
       `💡 Box ${boxIndex + 1} → Suggerimento: ${smartAction} | EV: ${res.ev?.toFixed(3)} | TC: ${tc.toFixed(2)}`
     );
@@ -1046,6 +1052,38 @@ function computeSuggestionForBox(boxIndex) {
     console.error("computeSuggestionForBox: errore nel calcolo EV", err);
     return { action: "—", ev: 0, trueCount: 0 };
   }
+}
+function updateSuggestionUI(boxIndex, res) {
+  const boxEl = document.querySelectorAll('.player-box')[boxIndex];
+  if (!boxEl) return;
+
+  const suggEl = boxEl.querySelector('.suggestion');
+  if (!suggEl) return;
+
+  // 🎯 Mostra azione consigliata + EV
+  const actionText = `${res.action || "—"} (EV: ${res.ev?.toFixed(3) || "?"})`;
+  suggEl.querySelector("span")?.textContent = actionText;
+
+  // 📊 Mostra percentuali se presenti
+  if (res.stats) {
+    const { hit, stand, dbl, split } = res.stats;
+    boxEl.querySelector('.hit-percent').textContent   = hit   ? `${(hit*100).toFixed(1)}%` : "-";
+    boxEl.querySelector('.stand-percent').textContent = stand ? `${(stand*100).toFixed(1)}%` : "-";
+    boxEl.querySelector('.double-percent').textContent = dbl   ? `${(dbl*100).toFixed(1)}%` : "-";
+    boxEl.querySelector('.split-percent').textContent  = split ? `${(split*100).toFixed(1)}%` : "-";
+  }
+
+  // 🎨 Colore dinamico in base all'EV
+  boxEl.style.transition = "background-color 0.4s ease";
+  if (res.ev > 0.2) {
+    boxEl.style.backgroundColor = "rgba(0, 200, 0, 0.15)"; // verde chiaro
+  } else if (res.ev < -0.2) {
+    boxEl.style.backgroundColor = "rgba(200, 0, 0, 0.15)"; // rosso chiaro
+  } else {
+    boxEl.style.backgroundColor = "rgba(255, 215, 0, 0.15)"; // giallo neutro
+  }
+
+  console.log(`📊 Box ${boxIndex + 1} probabilità:`, res.stats);
 }
 
 
