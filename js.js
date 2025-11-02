@@ -5,6 +5,8 @@ window.addEventListener("load", () => {
   // Reinizializza tutto
   if (typeof resetGame === "function") resetGame();
   console.log("🔄 Stato azzerato all'avvio");
+
+  console.log("V.J.S. 2");
 });
 
 // ===== Card Tracker + Player Boxes + EV engine =====
