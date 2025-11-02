@@ -852,17 +852,42 @@ if (canRealisticallyDouble) {
   
 
 
-  // choose best option
-  const opts = [{action:"Stand", ev:stand_ev}, {action:"Hit", ev:hit_ev}];
-  if (double_ev !== -Infinity) opts.push({action:"Double", ev:double_ev});
-  if (split_ev !== -Infinity) opts.push({action:"Split", ev:split_ev});
+ // choose best option
+const opts = [
+  { action: "Stand", ev: stand_ev },
+  { action: "Hit", ev: hit_ev }
+];
+if (double_ev !== -Infinity) opts.push({ action: "Double", ev: double_ev });
+if (split_ev !== -Infinity) opts.push({ action: "Split", ev: split_ev });
 
-  let best = opts[0];
-  for (const o of opts) if (o.ev > best.ev) best = o;
+// trova azione con EV più alto
+let best = opts[0];
+for (const o of opts) if (o.ev > best.ev) best = o;
 
-  const result = { ev: best.ev, action: best.action };
-  EVAL_CACHE.set(key, result);
-  return result;
+// ⚡ Calcola distribuzione percentuale di EV relativi
+// Normalizziamo rispetto alla somma positiva (solo per visualizzare)
+const evValues = opts.map(o => Math.max(o.ev, 0)); // ignora valori negativi
+const totalPos = evValues.reduce((a, b) => a + b, 0);
+let stats = {};
+if (totalPos > 0) {
+  for (const o of opts) {
+    stats[o.action.toLowerCase()] = Math.max(o.ev, 0) / totalPos;
+  }
+} else {
+  // fallback se tutti negativi: distribuzione uniforme
+  for (const o of opts) stats[o.action.toLowerCase()] = 1 / opts.length;
+}
+
+// ✅ includi tutto nel risultato
+const result = {
+  ev: best.ev,
+  action: best.action,
+  stats
+};
+
+EVAL_CACHE.set(key, result);
+return result;
+
 }
 
 // === API helper: practicalSuggestion intelligente ===
@@ -979,6 +1004,8 @@ function practicalSuggestion(evResult, tc, playerCards, dealerCard) {
 
 // === computeSuggestionForBox aggiornato ===
 function computeSuggestionForBox(boxIndex) {
+  console.log(`📊 Box ${boxIndex + 1} probabilità:`, res.stats);
+
   // sicurezza: dealerCard deve essere nota
   if (!dealerCard) {
     console.warn(`computeSuggestionForBox: dealerCard non definito, skip calcolo per box ${boxIndex}`);
