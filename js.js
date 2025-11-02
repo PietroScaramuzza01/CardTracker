@@ -867,48 +867,113 @@ if (canRealisticallyDouble) {
 
 // === API helper: practicalSuggestion intelligente ===
 function practicalSuggestion(evResult, tc, playerCards, dealerCard) {
+  console.log("🧠 practicalSuggestion input:", { evResult, tc, playerCards, dealerCard });
+
   if (!evResult || !evResult.action || isNaN(evResult.ev)) return "—";
 
-  const EV_THRESHOLD = 0.25; // soglia minima per considerare la mossa "decente"
-  const HIGH_TC = 2.0;       // soglia conteggio alto
-  const LOW_TC = -2.0;       // soglia conteggio basso
-
+  const HIGH_TC = 2.0;
+  const LOW_TC = -2.0;
   const isSoft = playerCards.includes("A") && totalValue(playerCards) <= 21;
 
-  // 1️⃣ EV troppo basso → non rischiare
-  if (evResult.ev < EV_THRESHOLD) return "Follow Base";
+  // 1️⃣ Azione base: quella suggerita dal motore Montecarlo
+  let action = evResult.action;
 
-  // 2️⃣ EV medio ma conteggio basso → comportamento prudente
-  if (tc < LOW_TC && (evResult.action === "Double" || evResult.action === "Split")) {
-    return "Follow Base";
+  // 2️⃣ Se il conteggio è molto alto e la mossa è forte, enfatizzala
+  if (tc > HIGH_TC && evResult.ev > 0.5 && (action === "Double" || action === "Split")) {
+    action += " 💥"; // highlight (opzionale)
   }
 
-  // 3️⃣ EV buono e TC alto → enfatizza le mosse forti
-  if (tc > HIGH_TC && evResult.ev > 0.5) {
-    if (evResult.action === "Double" || evResult.action === "Split") {
-      return "Strategy Override";
+  // 3️⃣ Se il conteggio è basso, sconsiglia doppi/split borderline
+  if (tc < LOW_TC && (action === "Double" || action === "Split")) {
+    action = "Hit";
+  }
+
+  // 4️⃣ Mani soft: prudenza
+  if (isSoft && action === "Double" && evResult.ev < 0.7) {
+    action = "Hit";
+  }
+
+  // 5️⃣ Se il motore ha deciso “Follow Base”, mostra comunque l’azione effettiva
+  if (action === "Follow Base" && evResult.baseAction) {
+    action = evResult.baseAction;
+  }
+
+  // Log finale
+  console.log(`💡 Suggestion result → ${action} | EV: ${evResult.ev.toFixed(3)} | TC: ${tc.toFixed(2)}`);
+
+  return action;
+}
+
+
+// 🔹 Calcola il valore totale della mano (gestisce assi come 1 o 11)
+function totalValue(cards) {
+  let total = 0;
+  let aces = 0;
+
+  for (const c of cards) {
+    if (["J", "Q", "K"].includes(c)) {
+      total += 10;
+    } else if (c === "A") {
+      aces++;
+      total += 11; // inizialmente conta come 11
+    } else {
+      total += parseInt(c);
     }
   }
 
-  // 4️⃣ Mani soft: prudenza se doppio borderline
-  if (isSoft && evResult.action === "Double" && evResult.ev < 0.7) {
-    return "Follow Base";
+  // Se sballa, scala gli assi da 11 a 1
+  while (total > 21 && aces > 0) {
+    total -= 10;
+    aces--;
   }
 
-  // 5️⃣ Default: restituisci l’azione
-  return evResult.action;
+  return total;
 }
 
-// Helper: calcola il valore totale (con gestione Asso)
-function totalValue(cards) {
-  let total = 0, aces = 0;
-  for (const c of cards) {
-    if (c === "A") { total += 11; aces++; }
-    else if (TEN_VALUES.includes(c)) total += 10;
-    else total += parseInt(c);
+// 🔹 Suggerimento pratico (versione migliorata)
+function practicalSuggestion(evResult, tc, playerCards, dealerCard) {
+  console.log("🧠 practicalSuggestion input:", { evResult, tc, playerCards, dealerCard });
+
+  if (!evResult || !evResult.action || isNaN(evResult.ev)) return "—";
+
+  const HIGH_TC = 2.0;
+  const LOW_TC = -2.0;
+  const isSoft = playerCards.includes("A") && totalValue(playerCards) <= 21;
+
+  let action = evResult.action;
+
+  // 💡 Se EV è molto basso ma è comunque la miglior mossa, non forzare "Follow Base"
+  if (evResult.ev < -0.8 && action !== "Stand") {
+    console.warn("⚠️ EV molto negativo, ma mantengo l’azione suggerita:", action);
   }
-  while (total > 21 && aces > 0) { total -= 10; aces--; }
-  return total;
+
+  // 💥 True Count alto → enfatizza doppi o split forti
+  if (tc > HIGH_TC && evResult.ev > 0.5 && (action === "Double" || action === "Split")) {
+    action += " 💥";
+  }
+
+  // 🧊 True Count basso → prudenza con doppi e split
+  if (tc < LOW_TC && (action === "Double" || action === "Split")) {
+    action = "Hit";
+  }
+
+  // 🂡 Mani soft (con Asso): prudenza nei doppi borderline
+  if (isSoft && action === "Double" && evResult.ev < 0.7) {
+    action = "Hit";
+  }
+
+  // Se la mossa è “Follow Base” ma l’oggetto ha un riferimento a baseAction, usa quello
+  if (action === "Follow Base" && evResult.baseAction) {
+    action = evResult.baseAction;
+  }
+
+  console.log(
+    `💡 Suggestion result → ${action} | EV: ${evResult.ev.toFixed(3)} | TC: ${tc.toFixed(2)} | Hand: [${playerCards.join(
+      ", "
+    )}] vs ${dealerCard}`
+  );
+
+  return action;
 }
 
 // === computeSuggestionForBox aggiornato ===
