@@ -93,9 +93,10 @@ document.querySelectorAll('.player-box').forEach((boxEl, index) => {
 // --- FUNZIONE DI EVIDENZIAZIONE VISIVA DEL BOX SELEZIONATO ---
 function highlightSelectedBox(index) {
   document.querySelectorAll('.player-box').forEach((b, i) => {
-    b.classList.toggle('selected', i === index);
+    b.classList.toggle('selected', i === index && index !== null);
   });
 }
+
 
 
 
@@ -352,9 +353,15 @@ function addCard(card) {
   let recipientIndex = null;
 
   // se è stato selezionato manualmente un box, usalo
-  if (selectedBoxIndex !== null && boxes[selectedBoxIndex]) {
+  // Se è stato selezionato un box tramite “Aggiorna”
+  if (selectedBoxIndex !== null) {
     recipientIndex = selectedBoxIndex;
-  }
+    console.log(`📍 Carta destinata al box ${recipientIndex + 1} (selezionato manualmente)`);
+
+    // Dopo aver usato la carta, disattiva la selezione
+    selectedBoxIndex = null;
+    highlightSelectedBox(null);
+  } 
   // fallback opzionale: se non è selezionato nessun box ma è impostato nextCardBoxId
   else if (nextCardBoxId) {
     recipientIndex = nextCardBoxId - 1;
@@ -906,7 +913,8 @@ function totalValue(cards) {
 
 // === computeSuggestionForBox aggiornato ===
 function computeSuggestionForBox(boxIndex) {
-  
+  console.log("computeSuggestionForBox inputs:", { boxIndex, boxCards: box.cards, dealerCardText, deckClone });
+
   // sicurezza: assicurati che dealerCard sia disponibile (variabile globale)
   if (!dealerCard) {
     console.warn(`computeSuggestionForBox: dealerCard non definito, skip calcolo per box ${boxIndex}`);
@@ -916,7 +924,6 @@ function computeSuggestionForBox(boxIndex) {
   // 🔧 Usa direttamente la variabile globale
 const dealerCardText = dealerCard;
 if (!dealerCardText || dealerCardText === "—") {
-  console.warn(`computeSuggestionForBox: dealerCard non definito, skip calcolo per box ${boxIndex + 1}`);
   return { action: "—", ev: 0, trueCount: 0 };
 }
 
