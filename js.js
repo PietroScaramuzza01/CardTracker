@@ -896,7 +896,7 @@ if (!dealerCardText || dealerCardText === "—") {
 
 
   const box = boxes[boxIndex];
-  console.log("computeSuggestionForBox inputs:", { boxIndex, boxCards: box.cards, dealerCardText, deckClone });
+ 
 
   if (!box || !box.active || !box.owner) return { action: "—", ev: 0, trueCount: 0 };
 
@@ -916,7 +916,7 @@ if (!dealerCardText || dealerCardText === "—") {
       console.warn("computeSuggestionForBox: risultato non valido", res);
       return { action: "—", ev: 0, trueCount: tc };
     }
-
+ console.log("computeSuggestionForBox inputs:", { boxIndex, boxCards: box.cards, dealerCardText, deckClone });
     const smartAction = practicalSuggestion(res, tc, box.cards, dealerCardText);
     return { action: smartAction, ev: res.ev, trueCount: tc };
   } catch (err) {
