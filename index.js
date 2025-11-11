@@ -31,7 +31,7 @@ Considera le seguenti informazioni che ti vengono passate:
 
 1. La mano del giocatore (valore totale e singole carte, senza semi): ${playerCards.join(", ")}
 2. La carta visibile del banco: ${dealerCard}
-3. Le carte rimanenti nel mazzo : ${deckState.join(", ")}
+3. Le carte rimanenti nel mazzo : ${JSON.stringify(deckState)}
 4. Eventuali azioni precedenti del giocatore.
 5. running count: ${trueCount}
 
@@ -85,6 +85,7 @@ Non fare supposizioni senza basi sulle carte già uscite.
     } catch {
       suggestion = { message: suggestionText };
     }
+console.log("GPT response raw:", suggestionText);
 
     res.json({
       success: true,
