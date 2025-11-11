@@ -1,4 +1,6 @@
 
+
+
 window.addEventListener("load", () => {
   // Cancella eventuali salvataggi automatici
   //localStorage.removeItem("cardTrackerState");
@@ -648,7 +650,7 @@ function loadState(){
   }
 }
 
-
+/*
 // =================== EV ENGINE (dealer distribution + evaluateBestAction) ===================
 
 // dealerFinalProbabilities: returns map {17:prob,18:prob,19:prob,20:prob,21:prob,bust:prob}
@@ -988,7 +990,7 @@ function practicalSuggestion(evResult, tc, playerCards, dealerCard) {
   // 6️⃣ Default
   return evResult.action;
 }
-
+*/
 
 // === computeSuggestionForBox aggiornato ===
 // --------- UI: aggiorna il pannello suggerimento per un singolo box ----------
@@ -1043,7 +1045,7 @@ function updateSuggestionUI(boxIndex, res, tc, stats = {}) {
   suggestionEl.appendChild(debugLine);
 }
 // 🔹 Normalizza EV in percentuali proporzionali (0–1)
-function normalizeEV(evResult) {
+/*function normalizeEV(evResult) {
   if (!evResult) return { stand: 0.33, hit: 0.33, double: 0.33, split: 0 };
 
   const evs = {
@@ -1085,12 +1087,24 @@ function normalizeEV(evResult) {
     split: normalized.split ?? 0
   };
 }
+*/
+const API_URL = "https://cardtracker-2.onrender.com";
+
+async function inviaRound(dati) {
+  const res = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(dati)
+  });
+  const result = await res.json();
+  console.log("Suggerimento:", result.suggestion);
+}
 
 
 
 
 // --------- computeSuggestionForBox (rivista) ----------
-function computeSuggestionForBox(boxIndex) {
+async function computeSuggestionForBox(boxIndex) {
   if (!dealerCard) {
     console.warn(`computeSuggestionForBox: dealerCard non definito, skip calcolo per box ${boxIndex}`);
     updateSuggestionUI(boxIndex, { action: "—", ev: 0 }, 0, {});
@@ -1104,52 +1118,55 @@ function computeSuggestionForBox(boxIndex) {
   }
 
   const box = boxes[boxIndex];
-  if (!box) {
-    console.warn(`computeSuggestionForBox: box ${boxIndex} non trovato`);
-    return { action: "—", ev: 0, trueCount: 0 };
-  }
-
-  if (!box.active || !box.owner) {
-    updateSuggestionUI(boxIndex, { action: "—", ev: 0 }, 0, {});
-    return { action: "—", ev: 0, trueCount: 0 };
-  }
-
-  if (!box.cards || box.cards.length === 0) {
+  if (!box || !box.active || !box.owner || !box.cards?.length) {
     updateSuggestionUI(boxIndex, { action: "—", ev: 0 }, 0, {});
     return { action: "—", ev: 0, trueCount: 0 };
   }
 
   try {
-  const decksRemaining = remainingCards / 52;
-  const tc = decksRemaining > 0 ? runningCount / decksRemaining : 0;
-  const deckClone = cloneDeck(deckState);
-  const canDouble = box.cards.length === 2;
+    // 🔹 Calcolo True Count solo per riferimento statistico
+    const decksRemaining = remainingCards / 52;
+    const tc = decksRemaining > 0 ? runningCount / decksRemaining : 0;
 
-  const res = evaluateBestAction(box.cards.slice(), deckClone, dealerCardText, canDouble, true, false);
-  console.log(`📊 Box ${boxIndex + 1} EV check →`, res);
+    // 🔹 Crea il payload da inviare al server
+    const payload = {
+      playerCards: box.cards,
+      dealerCard: dealerCardText,
+      trueCount: tc,
+    };
 
-  if (!res || typeof res.ev === 'undefined') {
-    updateSuggestionUI(boxIndex, { action: "—", ev: 0 }, tc, {});
-    return { action: "—", ev: 0, trueCount: tc };
+    console.log("🚀 Invio dati round al server:", payload);
+
+    // 🔹 Chiamata al tuo server su Render
+    const response = await fetch("https://cardtracker-2.onrender.com/api/suggestion", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) throw new Error(`Errore server (${response.status})`);
+    const data = await response.json();
+
+    console.log("📩 Risposta server:", data);
+
+    // 🔹 Interpreta la risposta
+    const suggestion = data?.suggestion?.mossa || data?.suggestion?.action || "—";
+    const ev = data?.suggestion?.ev || 0;
+    const stats = data?.suggestion?.probabilita || {};
+
+    // 🔹 Aggiorna interfaccia
+    updateSuggestionUI(boxIndex, { action: suggestion, ev }, tc, stats);
+    box.suggestion = suggestion;
+
+    return { action: suggestion, ev, trueCount: tc, stats };
+
+  } catch (err) {
+    console.error("❌ Errore nel contatto con API o Render:", err);
+    updateSuggestionUI(boxIndex, { action: "—", ev: 0 }, 0, {});
+    return { action: "—", ev: 0, trueCount: 0 };
   }
-
-  const normalizedStats = normalizeEV(res);
-  const smartAction = practicalSuggestion(res, tc, box.cards, dealerCardText);
-
-  console.log("📈 EV normalization →", normalizedStats);
-  console.log("🧠 Suggested action:", smartAction);
-
-  updateSuggestionUI(boxIndex, { action: smartAction, ev: res.ev }, tc, normalizedStats);
-  box.suggestion = smartAction;
-
-  return { action: smartAction, ev: res.ev, trueCount: tc, stats: normalizedStats };
-} catch (err) {
-  console.error("computeSuggestionForBox: errore nel calcolo EV", err);
-  updateSuggestionUI(boxIndex, { action: "—", ev: 0 }, 0, {});
-  return { action: "—", ev: 0, trueCount: 0 };
 }
 
-}
 
 
 
