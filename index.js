@@ -98,5 +98,5 @@ Non fare supposizioni senza basi sulle carte già uscite.
 });
 
 // 🔹 Porta
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`🚀 Relay server attivo su porta ${PORT}`));
