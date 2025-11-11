@@ -16,7 +16,8 @@ app.get("/", (req, res) => {
 
 // 🔹 Endpoint principale
 app.post("/api/suggestion", async (req, res) => {
-  const { playerCards, dealerCard, trueCount } = req.body;
+  const { playerCards, dealerCard, trueCount, deckState} = req.body;
+  console.log(deckState);
 
   try {
     // 🔸 Chiave API GPT dal file .env su Render
@@ -24,19 +25,36 @@ app.post("/api/suggestion", async (req, res) => {
 
     // 🔹 Prompt per GPT (puoi personalizzarlo)
     const prompt = `
-    Agisci come un esperto di blackjack e conteggio carte. 
-Analizza la situazione e consiglia la mossa ottimale considerando:
-- la strategia base,
-- il True Count (vantaggio del giocatore),
-- la carta del dealer,
-- la possibilità di raddoppio o split.
+    Sei un assistente specializzato in Blackjack avanzato. 
+Il tuo compito è analizzare lo stato corrente del gioco e dare consigli sulla mossa ottimale. 
+Considera le seguenti informazioni che ti vengono passate:
 
-Rispondi SOLO in formato JSON come questo:
+1. La mano del giocatore (valore totale e singole carte, senza semi): ${playerCards.join(", ")}
+2. La carta visibile del banco: ${dealerCard}
+3. Le carte rimanenti nel mazzo : ${deckState.join(", ")}
+4. Eventuali azioni precedenti del giocatore.
+5. running count: ${trueCount}
+
+Obiettivi:
+- Calcolare la **probabilità che il giocatore non sballi** per ciascuna mossa possibile (hit, stand, double, split se applicabile).
+- Calcolare la **probabilità di battere il banco**, stimando il totale possibile del banco in base alle carte rimanenti.
+- Suggerire la **mossa ottimale**: hit, stand, double, split o cash out.
+  - Il cash out deve essere suggerito se il totale attuale del giocatore è vulnerabile rispetto alla stima del banco.
+- Restituire anche i dati di probabilità in un formato JSON chiaro.
+
+Formato di risposta richiesto (JSON):
+
 {
-  "mossa": "hit | stand | double | split",
-  "probabilita": { "vittoria": x, "pareggio": x, "sconfitta": x },
-  "spiegazione": "..."
+  "mossaConsigliata": "hit | stand | double | split | cash_out",
+  "probabilitaNonSballo": 0-1,
+  "probabilitaBattereBanco": 0-1,
+  "note": "Eventuali osservazioni sul round"
 }
+
+Concentrati sul **contesto corrente del mazzo** e sulla strategia più accurata possibile.
+Non fare supposizioni senza basi sulle carte già uscite.
+
+
 
     Mano giocatore: ${playerCards.join(", ")}
     Carta dealer: ${dealerCard}
