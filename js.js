@@ -9,7 +9,7 @@ window.addEventListener("load", () => {
   if (typeof resetGame === "function") resetGame();
   console.log("🔄 Stato azzerato all'avvio");
 
-  console.log("V.J.S. 0.0.8");
+  console.log("V.J.S. 0.1.0");
 });
 document.getElementById("clear-storage").addEventListener("click", () => {
   localStorage.removeItem("cardTrackerState");
@@ -1133,6 +1133,7 @@ async function computeSuggestionForBox(boxIndex) {
       playerCards: box.cards,
       dealerCard: dealerCardText,
       trueCount: tc,
+      deckState: deckState
     };
 
     console.log("🚀 Invio dati round al server:", payload);
