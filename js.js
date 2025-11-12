@@ -651,13 +651,13 @@ function loadState(){
 }
 
 function updateSuggestionUI(boxIndex, res) {
+  console.log(boxIndex);
   const boxEl = playerBoxes[boxIndex];
   if (!boxEl) return;
 
-  const suggestedActionEl = boxEl.querySelector('.suggested-action');
-  const noBustEl = boxEl.querySelector('.no-bust');
-  const pvsdEl = boxEl.querySelector('.player-vs-dealer');
-  const valoreAttesoEl = boxEl.querySelector('.valore-atteso');
+   const ui = document.getElementById(`box-${boxIndex}`); // esempio: contenitore del box
+
+   
 
   if (!suggestedActionEl || !noBustEl || !pvsdEl || !valoreAttesoEl) {
     console.log("ATTENZIONE - No query updateSuggestion")
@@ -672,11 +672,11 @@ function updateSuggestionUI(boxIndex, res) {
                    ? (res.probabilitaNonSballo * 100).toFixed(1) + '%' : '-';
   const ev = typeof res?.valoreAtteso === 'number' ? res.valoreAtteso : null;
 
-  // Aggiornamento span
-  suggestedActionEl.textContent = action.toUpperCase();
-  noBustEl.textContent = probSafe;
-  pvsdEl.textContent = probWin;
-  valoreAttesoEl.textContent = ev !== null ? ev.toFixed(3) : '-';
+  ui.querySelector(".mossa").textContent = `Mossa: ${box.suggestion.action}`;
+    ui.querySelector(".no-bust").textContent = `No Bust: ${box.suggestion.noBust}`;
+    ui.querySelector(".pvsd").textContent = `PvsD: ${box.suggestion.pvsd}`;
+    ui.querySelector(".ev").textContent = `Valore Atteso: ${box.suggestion.ev}`;
+
 
   // Colore mossa
   let color = '#ccc';
@@ -860,7 +860,15 @@ console.log("📊 Dati locali calcolati:", localStats);
 
     console.log("📩 Risposta server:", data);
     
+ const suggestionData = data?.suggestion || {};
 
+    // Crea l'oggetto completo della suggestion
+    const newSuggestion = {
+        action: suggestionData.mossa || "—",
+        noBust: suggestionData.no_bust != null ? suggestionData.no_bust : "-",
+        pvsd: suggestionData.pvsd != null ? suggestionData.pvsd : "-",
+        ev: suggestionData.ev != null ? suggestionData.ev : "-"
+    };
 
     // 🔹 Interpreta la risposta
     const suggestion = data?.suggestion?.mossa || data?.suggestion?.action || "—";
@@ -868,9 +876,9 @@ console.log("📊 Dati locali calcolati:", localStats);
     const stats = data?.suggestion?.probabilita || {};
 
     // 🔹 Aggiorna interfaccia
-    updateSuggestionUI(boxIndex, { action: suggestion, ev }, tc, stats);
-    box.suggestion = suggestion;
-
+    
+    box.suggestion = newSuggestion;
+    updateSuggestionUI(boxIndex);
     return { action: suggestion, ev, trueCount: tc, stats };
 
   } catch (err) {
