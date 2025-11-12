@@ -94,10 +94,10 @@ Restituisci solo JSON valido.  Nessun testo o spiegazione fuori dal formato.
 
     // 🔹 Default suggestion
     let suggestion = {
-      mossaConsigliata: "—",
-      probabilitaNonSballo: 0,
-      probabilitaBattereBanco: 0,
-      valoreAtteso: 0
+      mossaConsigliata,
+      probabilitaNonSballo,
+      probabilitaBattereBanco,
+      valoreAtteso
     };
 
     // 🔹 Prova a parsare la risposta GPT
