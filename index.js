@@ -66,8 +66,7 @@ Formato di risposta richiesto :
   "mossaConsigliata": "hit | stand | double | split | cash_out",
   "probabilitaNonSballo": numero tra 0 e 1,
   "probabilitaBattereBanco": numero tra 0 e 1,
-  "valoreAtteso": numero tra -1 e +1 (facoltativo, se calcolato),
-  "pensieroAI": "perché riteni che questa mossa è giusta?"
+  "valoreAtteso": numero tra -1 e +1
 }
 
 Restituisci solo JSON valido.
