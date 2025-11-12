@@ -16,7 +16,8 @@ app.get("/", (req, res) => {
 
 // 🔹 Endpoint principale
 app.post("/api/suggestion", async (req, res) => {
-  const { playerCards, dealerCard, trueCount, deckState} = req.body;
+  const { summary, playerCards, dealerCard, deckState } = req.body;
+  console.log("🧮 Ricevuto:", summary);
   console.log(deckState);
 
   try {
@@ -28,15 +29,24 @@ app.post("/api/suggestion", async (req, res) => {
 Agisci come un esperto di Blackjack con competenze statistiche e di conteggio carte (Hi-Lo system).  
 Il tuo compito è analizzare lo stato attuale del mazzo e della mano e restituire una decisione di gioco ottimale basata su calcolo probabilistico e simulazione Monte Carlo.
 
-Dati forniti:
-- Carte del giocatore (senza semi): ${playerCards.join(", ")}
-- Carta visibile del dealer: ${dealerCard}
-- Running/True Count: ${trueCount}
-- Stato del mazzo (numero di carte rimanenti per valore): ${JSON.stringify(deckState)}
+Ecco i dati forniti:
+${JSON.stringify(summary, null, 2)}
+
+Significato dei campi:
+- total: totale della mano del giocatore
+- soft: valore soft (se c’è un asso che può valere 11)
+- isSoft: true se la mano è soft
+- isPair: true se le carte sono una coppia
+- dealerValue: valore carta visibile del banco
+- trueCount: running count normalizzato per i mazzi rimanenti
+- highPct / lowPct: probabilità relative di carte alte e basse rimanenti
+
+Azioni possibili: **hit**, **stand**, **double**, **split**, **cash_out**
 
 Ipotizza che:
 - Il banco si ferma su 17 (stand su soft 17).
 - Il mazzo è composto da ${Object.values(deckState).reduce((a,b)=>a+b,0)} carte rimanenti.
+- Stato del mazzo (numero di carte rimanenti per valore): ${JSON.stringify(deckState)}
 - Gli assi possono valere 1 o 11 a seconda del contesto.
 - Il giocatore può scegliere tra: hit, stand, double, split, cash_out.
 

@@ -1089,7 +1089,7 @@ function updateSuggestionUI(boxIndex, res, tc, stats = {}) {
 }
 */
 const API_URL = "https://cardtracker-2.onrender.com";
-
+/*
 async function inviaRound(dati) {
   const res = await fetch(API_URL, {
     method: "POST",
@@ -1100,7 +1100,47 @@ async function inviaRound(dati) {
   console.log("Suggerimento:", result.suggestion);
 }
 
+*/
 
+function computeLocalStats(box, dealerCard, deckState, runningCount, remainingCards) {
+  // Calcola punteggio giocatore
+  const values = box.cards.map(c => getCardBaseValue(c));
+  const hasAce = box.cards.includes("A");
+  let total = values.reduce((a,b)=>a+b,0);
+  let soft = hasAce && total <= 11 ? total + 10 : total;
+  if (soft > 21) soft = total; // gestisci Asso
+
+  // Tipo di mano
+  const isPair = box.cards.length === 2 && box.cards[0] === box.cards[1];
+  const isSoft = hasAce && total <= 11;
+
+  // Dealer
+  const dealerValue = getCardBaseValue(dealerCard);
+
+  // True count
+  const decksRemaining = remainingCards / 52;
+  const trueCount = decksRemaining > 0 ? runningCount / decksRemaining : 0;
+
+  // Stima di composizione mazzo (percentuali alte/basse)
+  const totalCards = deckTotal(deckState);
+  const highCount = ["10","J","Q","K","A"].reduce((s,c)=>s+(deckState[c]||0),0);
+  const lowCount  = ["2","3","4","5","6"].reduce((s,c)=>s+(deckState[c]||0),0);
+
+  const highPct = highCount / totalCards;
+  const lowPct  = lowCount / totalCards;
+
+  return {
+    total,
+    soft,
+    isSoft,
+    isPair,
+    dealerValue,
+    trueCount,
+    highPct,
+    lowPct,
+    numCards: box.cards.length,
+  };
+}
 
 
 // --------- computeSuggestionForBox (rivista) ----------
@@ -1122,6 +1162,10 @@ async function computeSuggestionForBox(boxIndex) {
     updateSuggestionUI(boxIndex, { action: "—", ev: 0 }, 0, {});
     return { action: "—", ev: 0, trueCount: 0 };
   }
+  // 🔹 Calcoli locali semplificati
+const localStats = computeLocalStats(box, dealerCard, deckState, runningCount, remainingCards);
+console.log("📊 Dati locali calcolati:", localStats);
+
 
   try {
     // 🔹 Calcolo True Count solo per riferimento statistico
@@ -1130,11 +1174,13 @@ async function computeSuggestionForBox(boxIndex) {
 
     // 🔹 Crea il payload da inviare al server
     const payload = {
-      playerCards: box.cards,
-      dealerCard: dealerCardText,
+      summary: localStats,            // tutti i dati pre-calcolati
+  playerCards: box.cards,         // utile per la simulazione
+  dealerCard: dealerCardText, 
       trueCount: tc,
       deckState: deckState
     };
+
 
     console.log("🚀 Invio dati round al server:", payload);
 
@@ -1149,6 +1195,7 @@ async function computeSuggestionForBox(boxIndex) {
     const data = await response.json();
 
     console.log("📩 Risposta server:", data);
+    
 
     // 🔹 Interpreta la risposta
     const suggestion = data?.suggestion?.mossa || data?.suggestion?.action || "—";
