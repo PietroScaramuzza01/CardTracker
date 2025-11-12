@@ -659,7 +659,10 @@ function updateSuggestionUI(boxIndex, res) {
   const pvsdEl = boxEl.querySelector('.player-vs-dealer');
   const valoreAttesoEl = boxEl.querySelector('.valore-atteso');
 
-  if (!suggestedActionEl || !noBustEl || !pvsdEl || !valoreAttesoEl) return;
+  if (!suggestedActionEl || !noBustEl || !pvsdEl || !valoreAttesoEl) {
+    console.log("ATTENZIONE - No query updateSuggestion")
+    return;
+  }
 
   // Dati AI
   const action = res?.mossaConsigliata || '—';
