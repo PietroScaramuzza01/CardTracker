@@ -61,16 +61,16 @@ Compito:
 3. Scegli la **mossa ottimale** (quella con il valore atteso di vincita più alto).
 4. Restituisci il risultato in formato JSON puro, senza spiegazioni testuali.
 
-Formato di risposta richiesto (solo JSON, nessun testo extra):
+Formato di risposta richiesto :
 {
   "mossaConsigliata": "hit | stand | double | split | cash_out",
   "probabilitaNonSballo": numero tra 0 e 1,
   "probabilitaBattereBanco": numero tra 0 e 1,
   "valoreAtteso": numero tra -1 e +1 (facoltativo, se calcolato),
-  "motivoSintetico": "frase breve (max 10 parole)"
+  "pensieroAI": "perché riteni che questa mossa è giusta?"
 }
 
-Restituisci solo JSON valido. Nessun testo o spiegazione fuori dal formato.
+Restituisci solo JSON valido.
 `;
 
 
