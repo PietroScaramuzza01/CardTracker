@@ -57,9 +57,9 @@ Compito:
    - Probabilità attesa di vincita con **Double**.
    - Probabilità di vantaggio medio con **Split** (se carte uguali).
    - Probabilità attesa di mantenere un EV positivo con **Cash Out**.
-2. Puoi utilizzare simulazioni Monte Carlo (simulate 1000 round) o ragionamento probabilistico semplificato basato sul conteggio carte.
+2. Fai una simulazione Monte Carlo (simula 1000 round) o ragionamento probabilistico avanzato basato sul conteggio carte.
 3. Scegli la **mossa ottimale** (quella con il valore atteso di vincita più alto).
-4. Restituisci il risultato in formato JSON puro, senza spiegazioni testuali.
+4. Restituisci il risultato in formato JSON puro
 
 Formato di risposta richiesto :
 {
