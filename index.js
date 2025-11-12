@@ -4,14 +4,9 @@ import dotenv from "dotenv";
 import fetch from "node-fetch"; // se usi Node < 18, altrimenti puoi rimuovere
 
 dotenv.config();
-const express = require('express');
-const cors = require('cors');
+
 const app = express();
-
-app.use(cors({
-  origin: 'https://pietroscaramuzza01.github.io' // o '*' per test
-}));
-
+app.use(cors());
 app.use(express.json());
 
 // 🔹 Endpoint test
@@ -66,7 +61,7 @@ Compito:
 3. Scegli la **mossa ottimale** (quella con il valore atteso di vincita più alto).
 4. Restituisci il risultato in formato JSON puro
 
-Formato di risposta richiesto (solo json puro):
+Formato di risposta richiesto (solo json):
 {
   "mossaConsigliata": "hit | stand | double | split | cash_out",
   "probabilitaNonSballo": numero tra 0 e 1,
