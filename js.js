@@ -311,7 +311,7 @@ function selectBoxForUpdate(index) {
   console.log(`🎯 Box ${index + 1} selezionato per aggiornamento manuale`);
 }
 
-function addCard(card) {
+async function addCard(card) {
   if (!card) {
     console.warn("⚠️ addCard: nessuna carta fornita");
     return;
@@ -403,8 +403,8 @@ function addCard(card) {
   });
 
   // aggiorna suggerimento solo se dealerCard è noto
-  if (dealerCard) {
-    const suggestionResult = computeSuggestionForBox(recipientIndex) || {};
+    if (dealerCard) {
+    const suggestionResult = await computeSuggestionForBox(recipientIndex);
     box.suggestion = suggestionResult.action || "—";
   }
 
@@ -650,400 +650,94 @@ function loadState(){
   }
 }
 
-/*
-// =================== EV ENGINE (dealer distribution + evaluateBestAction) ===================
 
-// dealerFinalProbabilities: returns map {17:prob,18:prob,19:prob,20:prob,21:prob,bust:prob}
-const dealerFinalCache = new Map();
-function dealerFinalProbabilities(deckStateArg, dealerUpcard) {
-  const key = deckKey(deckStateArg) + "::UP=" + dealerUpcard;
-  if (dealerFinalCache.has(key)) return dealerFinalCache.get(key);
-
-  const deck = cloneDeck(deckStateArg);
-  // remove upcard if present
-  if (deck[dealerUpcard] && deck[dealerUpcard] > 0) deck[dealerUpcard]--;
-
-  const initVal = (dealerUpcard==="A")?11:(TEN_VALUES.includes(dealerUpcard)?10:parseInt(dealerUpcard));
-  const initUsable = (dealerUpcard==="A")?1:0;
-
-  const memo = new Map();
-
-  function recurse(total, usableAces, deckLocal) {
-    const mkey = total + "|" + usableAces + "|" + deckKey(deckLocal);
-    if (memo.has(mkey)) return memo.get(mkey);
-    if (total >= 17) {
-      const res = {};
-      if (total > 21) res.bust = 1;
-      else res[total] = 1;
-      memo.set(mkey, res);
-      return res;
-    }
-    const totalCardsLeft = deckTotal(deckLocal);
-    if (totalCardsLeft === 0) {
-      const res = {};
-      if (total > 21) res.bust = 1;
-      else res[total] = 1;
-      memo.set(mkey, res);
-      return res;
-    }
-    const agg = {};
-    for (const card of Object.keys(deckLocal)) {
-      const count = deckLocal[card];
-      if (count <= 0) continue;
-      const prob = count / totalCardsLeft;
-      deckLocal[card]--;
-      let add = (card==="A")?11:(TEN_VALUES.includes(card)?10:parseInt(card));
-      let newTotal = total + add;
-      let newUsable = usableAces + (card==="A"?1:0);
-      while (newTotal > 21 && newUsable > 0) { newTotal -= 10; newUsable--; }
-      const sub = recurse(newTotal, newUsable, deckLocal);
-      for (const k in sub) agg[k] = (agg[k]||0) + prob * sub[k];
-      deckLocal[card]++;
-    }
-    memo.set(mkey, agg);
-    return agg;
-  }
-
-  const finalDist = recurse(initVal, initUsable, deck);
-  dealerFinalCache.set(key, finalDist);
-  return finalDist;
-}
-
-// stand EV using dealer distribution
-function standEV(playerTotal, dealerDist) {
-  let ev = 0;
-  for (const k in dealerDist) {
-    const p = dealerDist[k];
-    if (k === "bust") { ev += p * 1; continue; }
-    const dTotal = parseInt(k);
-    if (dTotal > 21) ev += p * 1;
-    else if (dTotal < playerTotal) ev += p * 1;
-    else if (dTotal === playerTotal) ev += p * 0;
-    else ev += p * -1;
-  }
-  return ev;
-}
-
-function trueCountBias(deck) {
-  const total = deckTotal(deck);
-  const ratio10 =
-    (deck["10"] + deck["J"] + deck["Q"] + deck["K"]) / total;
-  const bias = {};
-
-  for (const card of Object.keys(deck)) {
-    let factor = 1.0;
-    if (TEN_VALUES.includes(card)) factor = 1.0 + ratio10 * 1.5; // favorisci i 10
-    else if (["2", "3", "4"].includes(card)) factor = 1.0 - ratio10; // penalizza le basse
-    bias[card] = Math.max(0.1, factor);
-  }
-
-  return bias;
-}
-
-
-// recursive evaluator (memoized)
-const EVAL_CACHE = new Map();
-
-function evaluateBestAction(playerCards, deckStateArg, dealerUpcard, canDouble=true, canSplit=true, afterSplit=false) {
-  const key = [handKey(playerCards), deckKey(deckStateArg), dealerUpcard, canDouble?1:0, canSplit?1:0, afterSplit?1:0].join("||");
-  if (EVAL_CACHE.has(key)) return EVAL_CACHE.get(key);
-
-  // compute player's total with aces
-  let total = 0, aces = 0;
-  for (const c of playerCards) {
-    if (c === "A") { total += 11; aces++; }
-    else if (TEN_VALUES.includes(c)) total += 10;
-    else total += parseInt(c);
-  }
-  while (total > 21 && aces > 0) { total -= 10; aces--; }
-  if (total > 21) {
-    const r = { ev: -1, action: "Bust", stand_ev: -Infinity, hit_ev: -Infinity, double_ev: -Infinity, split_ev: -Infinity };
-    EVAL_CACHE.set(key, r); return r;
-  }
-
-  // compute dealer distribution
-  const dealerDist = dealerFinalProbabilities(deckStateArg, dealerUpcard);
-
-  // Stand EV
-  const stand_ev = standEV(total, dealerDist);
-
-  const isSoft = (aces > 0 && total <= 21);
-  const canRealisticallyDouble =
-    canDouble &&
-    !afterSplit &&
-    playerCards.length === 2 &&
-    (
-      (!isSoft && total >= 9 && total <= 11) ||
-      (isSoft && total >= 13 && total <= 18)
-    );
-
-  // Double EV (draw one then stand) - payoff *2
-  let double_ev = -Infinity;
-  if (canRealisticallyDouble) {
-    const tot = deckTotal(deckStateArg);
-    if (tot > 0) {
-      let acc = 0;
-      for (const card of Object.keys(deckStateArg)) {
-        const cnt = deckStateArg[card];
-        if (cnt <= 0) continue;
-        const prob = cnt / tot;
-        deckStateArg[card]--;
-        // calc new total after draw
-        let nv = 0, na = 0;
-        for (const cc of playerCards) {
-          if (cc==="A"){ nv+=11; na++; }
-          else if (TEN_VALUES.includes(cc)) nv+=10;
-          else nv+=parseInt(cc);
-        }
-        if (card==="A"){ nv+=11; na++; } else if (TEN_VALUES.includes(card)) nv+=10; else nv+=parseInt(card);
-        while (nv>21 && na>0){ nv-=10; na--; }
-        const sub = standEV(nv, dealerDist);
-        deckStateArg[card]++;
-        acc += prob * sub;
-      }
-      double_ev = 2 * acc;
-    }
-  }
-
-  // Hit EV (draw one, then make best decision)
-  let hit_ev = -Infinity;
-  {
-    const tot = deckTotal(deckStateArg);
-    if (tot > 0) {
-      let acc = 0;
-      for (const card of Object.keys(deckStateArg)) {
-        const cnt = deckStateArg[card];
-        if (cnt <= 0) continue;
-        const prob = cnt / tot;
-        deckStateArg[card]--;
-        const newHand = playerCards.concat([card]);
-        // We disallow doubling after a hit in recursion (common simplification)
-        const sub = evaluateBestAction(newHand, deckStateArg, dealerUpcard, false, false, afterSplit);
-        deckStateArg[card]++;
-        acc += prob * sub.ev;
-      }
-      hit_ev = acc;
-    }
-  }
-
-  // Split EV (if pair and allowed)
-  let split_ev = -Infinity;
-  if (canSplit && playerCards.length === 2) {
-    const a = playerCards[0], b = playerCards[1];
-    const valA = (a==="A")?11:(TEN_VALUES.includes(a)?10:parseInt(a));
-    const valB = (b==="A")?11:(TEN_VALUES.includes(b)?10:parseInt(b));
-    const isPair = (valA === valB) || (TEN_VALUES.includes(a) && TEN_VALUES.includes(b));
-    if (isPair) {
-      const tot = deckTotal(deckStateArg);
-      if (tot > 1) {
-        let acc = 0;
-        for (const card1 of Object.keys(deckStateArg)) {
-          const cnt1 = deckStateArg[card1];
-          if (cnt1 <= 0) continue;
-          const p1 = cnt1 / tot;
-          deckStateArg[card1]--;
-          for (const card2 of Object.keys(deckStateArg)) {
-            const cnt2 = deckStateArg[card2];
-            if (cnt2 <= 0) continue;
-            const p2 = cnt2 / (tot - 1);
-            const ev1 = evaluateBestAction([a, card1], deckStateArg, dealerUpcard, true, false, true).ev;
-            const ev2 = evaluateBestAction([b, card2], deckStateArg, dealerUpcard, true, false, true).ev;
-            acc += p1 * p2 * ((ev1 + ev2) / 2);
-          }
-          deckStateArg[card1]++;
-        }
-        split_ev = acc;
-      }
-    }
-  }
-
-  // choose best option
-  const opts = [{action:"Stand", ev:stand_ev}, {action:"Hit", ev:hit_ev}];
-  if (double_ev !== -Infinity) opts.push({action:"Double", ev:double_ev});
-  if (split_ev !== -Infinity) opts.push({action:"Split", ev:split_ev});
-
-  let best = opts[0];
-  for (const o of opts) if (o.ev > best.ev) best = o;
-
-  const result = {
-    ev: best.ev,
-    action: best.action,
-    // ritorniamo anche i singoli EV per poter normalizzare/produrre stats
-    stand_ev,
-    hit_ev,
-    double_ev,
-    split_ev
-  };
-
-  EVAL_CACHE.set(key, result);
-  return result;
-}
-
-
-// === API helper: practicalSuggestion intelligente ===
-function practicalSuggestion(evResult, tc, playerCards, dealerCard) {
-  console.log("🧠 practicalSuggestion input:", { evResult, tc, playerCards, dealerCard });
-
-  if (!evResult || !evResult.action || isNaN(evResult.ev)) return "—";
-
-  const HIGH_TC = 2.0;
-  const LOW_TC = -2.0;
-  const isSoft = playerCards.includes("A") && totalValue(playerCards) <= 21;
-
-  // 1️⃣ Azione base: quella suggerita dal motore Montecarlo
-  let action = evResult.action;
-
-  // 2️⃣ Se il conteggio è molto alto e la mossa è forte, enfatizzala
-  if (tc > HIGH_TC && evResult.ev > 0.5 && (action === "Double" || action === "Split")) {
-    action += " 💥"; // highlight (opzionale)
-  }
-
-  // 3️⃣ Se il conteggio è basso, sconsiglia doppi/split borderline
-  if (tc < LOW_TC && (action === "Double" || action === "Split")) {
-    action = "Hit";
-  }
-
-  // 4️⃣ Mani soft: prudenza
-  if (isSoft && action === "Double" && evResult.ev < 0.7) {
-    action = "Hit";
-  }
-
-  // 5️⃣ Se il motore ha deciso “Follow Base”, mostra comunque l’azione effettiva
-  if (action === "Follow Base" && evResult.baseAction) {
-    action = evResult.baseAction;
-  }
-
-  // Log finale
-  console.log(`💡 Suggestion result → ${action} | EV: ${evResult.ev.toFixed(3)} | TC: ${tc.toFixed(2)}`);
-
-  return action;
-}
-
-
-// 🔹 Calcola il valore totale della mano (gestisce assi come 1 o 11)
-function totalValue(cards) {
-  let total = 0;
-  let aces = 0;
-
-  for (const c of cards) {
-    if (["J", "Q", "K"].includes(c)) {
-      total += 10;
-    } else if (c === "A") {
-      aces++;
-      total += 11; // inizialmente conta come 11
-    } else {
-      total += parseInt(c);
-    }
-  }
-
-  // Se sballa, scala gli assi da 11 a 1
-  while (total > 21 && aces > 0) {
-    total -= 10;
-    aces--;
-  }
-
-  return total;
-}
-
-// 🔹 Suggerimento pratico (versione migliorata)
-function practicalSuggestion(evResult, tc, playerCards, dealerCard) {
-  console.log("🧠 practicalSuggestion input:", { evResult, tc, playerCards, dealerCard });
-
-  if (!evResult || !evResult.action || isNaN(evResult.ev)) return "—";
-
-  const EV_THRESHOLD = 0.25;
-  const HIGH_TC = 2.0;
-  const EXTREME_TC = 8.0;
-  const LOW_TC = -2.0;
-
-  const isSoft = playerCards.includes("A") && totalValue(playerCards) <= 21;
-
-  // 1️⃣ EV troppo basso → comportamento prudente
-  if (evResult.ev < EV_THRESHOLD) return "Follow Base";
-
-  // 2️⃣ EV medio ma conteggio basso → prudenza per Double/Split
-  if (tc < LOW_TC && (evResult.action === "Double" || evResult.action === "Split")) {
-    return "Follow Base";
-  }
-
-  // 3️⃣ EV buono e TC alto → incentiva mosse forti
-  if (tc > HIGH_TC && evResult.ev > 0.5) {
-    if (evResult.action === "Double" || evResult.action === "Split") {
-      return "Strategy Override";
-    }
-  }
-
-  // 4️⃣ Conteggio estremo → enfatizza l’aggressività (nuovo)
-  if (tc >= EXTREME_TC) {
-    if (evResult.ev > 0.4) {
-      return "Strategy Override";
-    } else if (evResult.ev > 0.2) {
-      return "Deviate Slightly";
-    }
-  }
-
-  // 5️⃣ Mani soft → prudenza con double borderline
-  if (isSoft && evResult.action === "Double" && evResult.ev < 0.7) {
-    return "Follow Base";
-  }
-
-  // 6️⃣ Default
-  return evResult.action;
-}
-*/
-
-// === computeSuggestionForBox aggiornato ===
-// --------- UI: aggiorna il pannello suggerimento per un singolo box ----------
 function updateSuggestionUI(boxIndex, res, tc, stats = {}) {
-  // boxIndex: indice numerico (0-based)
   const boxEl = playerBoxes[boxIndex];
   if (!boxEl) return;
 
   const suggestionEl = boxEl.querySelector('.suggestion');
   if (!suggestionEl) return;
 
-  // Clear previous content
+  // Pulizia
   suggestionEl.innerHTML = '';
 
-  // Action + EV + TC line
+  // Dati di base
+  const action = res?.action || "—";
+  const ev = typeof res?.ev === 'number' ? res.ev : null;
+  const motivo = res?.motivoSintetico || '';
+  const probWin = res?.probabilitaBattereBanco || null;
+  const probSafe = res?.probabilitaNonSballo || null;
+  const tcText = typeof tc === 'number' ? tc.toFixed(2) : tc;
+
+  // Riga azione
   const actionLine = document.createElement('div');
   actionLine.className = 'suggestion-action';
-  const actionText = (res?.action) ? res.action : "—";
-  const evText = (typeof res?.ev === 'number') ? res.ev.toFixed(3) : '?';
-  const tcText = (typeof tc === 'number') ? parseFloat(tc).toFixed(2) : tc;
-  actionLine.innerHTML = `<strong>${actionText}</strong> <small>(EV: ${evText} | TC: ${tcText})</small>`;
+
+  // Colore azione
+  let color = '#ccc';
+  if (action === 'hit') color = '#00aaff';
+  else if (action === 'stand') color = '#ffaa00';
+  else if (action === 'double') color = '#00ff88';
+  else if (action === 'split') color = '#ff66ff';
+
+  // Icona decorativa per EV+
+  const trendIcon = ev > 0 ? '▲' : ev < 0 ? '▼' : '•';
+  const evColor = ev > 0 ? '#00ff88' : ev < 0 ? '#ff4444' : '#999';
+
+  actionLine.innerHTML = `
+    <strong style="color:${color}">${action.toUpperCase()}</strong> 
+    <small>(EV: <span style="color:${evColor}">${ev?.toFixed(3) ?? '?'}</span> | TC: ${tcText})</small> 
+    <span style="color:${evColor};font-size:0.8em;margin-left:6px;">${trendIcon}</span>
+  `;
   suggestionEl.appendChild(actionLine);
 
-  // Percentuali / probabilità (se fornite in stats)
-  const statsObj = stats || {};
-  const keys = Object.keys(statsObj);
+  // Barra visiva EV
+  if (typeof ev === 'number') {
+    const bar = document.createElement('div');
+    bar.className = 'ev-bar';
+    bar.style.height = '6px';
+    bar.style.borderRadius = '3px';
+    bar.style.marginTop = '5px';
+    bar.style.background = ev >= 0 ? '#00ff8855' : '#ff444455';
+    bar.style.width = `${Math.min(Math.abs(ev) * 100, 100)}%`;
+    suggestionEl.appendChild(bar);
+  }
+
+  // Percentuali se presenti
+  const keys = Object.keys(stats);
   if (keys.length) {
     const statsLine = document.createElement('div');
     statsLine.className = 'suggestion-stats';
     statsLine.style.marginTop = '6px';
     statsLine.style.fontSize = '0.85em';
+    statsLine.style.color = '#bbb';
 
-    // converti {hit:0.22, stand:0.33,...} in "Hit: 22.0% | Stand: 33.0% | ..."
     const parts = keys.map(k => {
-      const val = statsObj[k];
-      const pct = (typeof val === 'number') ? (val * 100).toFixed(1) + '%' : String(val);
-      // Capitalize first letter for display
+      const val = stats[k];
+      const pct = typeof val === 'number' ? (val * 100).toFixed(1) + '%' : String(val);
       return `${k.charAt(0).toUpperCase() + k.slice(1)}: ${pct}`;
     });
+
     statsLine.textContent = parts.join(' | ');
     suggestionEl.appendChild(statsLine);
   }
 
-  // Keep small debug line with underlying hand (optional)
+  // Tooltip informativo
+  suggestionEl.title = motivo ||
+    `Win: ${(probWin * 100).toFixed(1)}% | Safe: ${(probSafe * 100).toFixed(1)}%`;
+
+  // Riga debug
   const debugLine = document.createElement('div');
   debugLine.className = 'suggestion-debug';
   debugLine.style.fontSize = '0.75em';
   debugLine.style.marginTop = '4px';
   debugLine.style.color = '#999';
+
   const box = boxes[boxIndex];
   debugLine.textContent = box && box.cards ? `Hand: [${box.cards.join(', ')}]` : '';
   suggestionEl.appendChild(debugLine);
 }
+
 // 🔹 Normalizza EV in percentuali proporzionali (0–1)
 /*function normalizeEV(evResult) {
   if (!evResult) return { stand: 0.33, hit: 0.33, double: 0.33, split: 0 };
@@ -1197,6 +891,7 @@ console.log("📊 Dati locali calcolati:", localStats);
     console.log("📩 Risposta server:", data);
     
 
+
     // 🔹 Interpreta la risposta
     const suggestion = data?.suggestion?.mossa || data?.suggestion?.action || "—";
     const ev = data?.suggestion?.ev || 0;
@@ -1213,6 +908,7 @@ console.log("📊 Dati locali calcolati:", localStats);
     updateSuggestionUI(boxIndex, { action: "—", ev: 0 }, 0, {});
     return { action: "—", ev: 0, trueCount: 0 };
   }
+  
 }
 
 
