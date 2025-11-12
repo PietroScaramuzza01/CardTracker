@@ -651,34 +651,39 @@ function loadState(){
 }
 
 function updateSuggestionUI(boxIndex, res) {
-  console.log(boxIndex);
   const boxEl = playerBoxes[boxIndex];
   if (!boxEl) return;
 
-   const ui = document.getElementById(`box-${boxIndex}`); // esempio: contenitore del box
+  const ui = document.getElementById(`box-${boxIndex}`);
+  if (!ui) return;
 
-   
+  const suggestedActionEl = ui.querySelector(".mossa");
+  const noBustEl = ui.querySelector(".no-bust");
+  const pvsdEl = ui.querySelector(".pvsd");
+  const valoreAttesoEl = ui.querySelector(".ev");
 
   if (!suggestedActionEl || !noBustEl || !pvsdEl || !valoreAttesoEl) {
-    console.log("ATTENZIONE - No query updateSuggestion")
+    console.log("ATTENZIONE - elementi UI mancanti");
     return;
   }
 
-  // Dati AI
+  // 🔹 Dati AI
   const action = res?.mossaConsigliata || '—';
   const probWin = typeof res?.probabilitaBattereBanco === 'number' 
-                  ? (res.probabilitaBattereBanco * 100).toFixed(1) + '%' : '-';
+                  ? (res.probabilitaBattereBanco * 100).toFixed(1) + '%' 
+                  : '-';
   const probSafe = typeof res?.probabilitaNonSballo === 'number' 
-                   ? (res.probabilitaNonSballo * 100).toFixed(1) + '%' : '-';
+                   ? (res.probabilitaNonSballo * 100).toFixed(1) + '%' 
+                   : '-';
   const ev = typeof res?.valoreAtteso === 'number' ? res.valoreAtteso : null;
 
-  ui.querySelector(".mossa").textContent = `Mossa: ${box.suggestion.action}`;
-    ui.querySelector(".no-bust").textContent = `No Bust: ${box.suggestion.noBust}`;
-    ui.querySelector(".pvsd").textContent = `PvsD: ${box.suggestion.pvsd}`;
-    ui.querySelector(".ev").textContent = `Valore Atteso: ${box.suggestion.ev}`;
+  // 🔹 Aggiorna la UI con i dati AI
+  suggestedActionEl.textContent = `Mossa: ${action.toUpperCase()}`;
+  noBustEl.textContent = `No Bust: ${probSafe}`;
+  pvsdEl.textContent = `PvsD: ${probWin}`;
+  valoreAttesoEl.textContent = `Valore Atteso: ${ev !== null ? ev.toFixed(3) : '-'}`;
 
-
-  // Colore mossa
+  // 🔹 Colore mossa
   let color = '#ccc';
   if (action === 'hit') color = '#00aaff';
   else if (action === 'stand') color = '#ffaa00';
@@ -686,7 +691,7 @@ function updateSuggestionUI(boxIndex, res) {
   else if (action === 'split') color = '#ff66ff';
   suggestedActionEl.style.color = color;
 
-  // Barra EV visiva
+  // 🔹 Barra EV visiva
   let bar = boxEl.querySelector('.ev-bar');
   if (!bar) {
     bar = document.createElement('div');
@@ -809,46 +814,29 @@ function computeLocalStats(box, dealerCard, deckState, runningCount, remainingCa
 
 // --------- computeSuggestionForBox (rivista) ----------
 async function computeSuggestionForBox(boxIndex) {
-  if (!dealerCard) {
-    console.warn(`computeSuggestionForBox: dealerCard non definito, skip calcolo per box ${boxIndex}`);
-    updateSuggestionUI(boxIndex, { action: "—", ev: 0 }, 0, {});
-    return { action: "—", ev: 0, trueCount: 0 };
-  }
-
-  const dealerCardText = dealerCard;
-  if (!dealerCardText || dealerCardText === "—") {
-    updateSuggestionUI(boxIndex, { action: "—", ev: 0 }, 0, {});
-    return { action: "—", ev: 0, trueCount: 0 };
-  }
-
   const box = boxes[boxIndex];
-  if (!box || !box.active || !box.owner || !box.cards?.length) {
-    updateSuggestionUI(boxIndex, { action: "—", ev: 0 }, 0, {});
+  if (!box || !box.active || !box.owner || !box.cards?.length || !dealerCard || dealerCard === "—") {
+    updateSuggestionUI(boxIndex, { mossaConsigliata: "—", probabilitaBattereBanco: 0, probabilitaNonSballo: 0, valoreAtteso: 0 });
     return { action: "—", ev: 0, trueCount: 0 };
   }
-  // 🔹 Calcoli locali semplificati
-const localStats = computeLocalStats(box, dealerCard, deckState, runningCount, remainingCards);
-console.log("📊 Dati locali calcolati:", localStats);
 
+  const localStats = computeLocalStats(box, dealerCard, deckState, runningCount, remainingCards);
+  console.log("📊 Dati locali calcolati:", localStats);
 
   try {
-    // 🔹 Calcolo True Count solo per riferimento statistico
     const decksRemaining = remainingCards / 52;
     const tc = decksRemaining > 0 ? runningCount / decksRemaining : 0;
 
-    // 🔹 Crea il payload da inviare al server
     const payload = {
-      summary: localStats,            // tutti i dati pre-calcolati
-  playerCards: box.cards,         // utile per la simulazione
-  dealerCard: dealerCardText, 
+      summary: localStats,
+      playerCards: box.cards,
+      dealerCard: dealerCard,
       trueCount: tc,
       deckState: deckState
     };
 
-
     console.log("🚀 Invio dati round al server:", payload);
 
-    // 🔹 Chiamata al tuo server su Render
     const response = await fetch("https://cardtracker-2.onrender.com/api/suggestion", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -857,36 +845,36 @@ console.log("📊 Dati locali calcolati:", localStats);
 
     if (!response.ok) throw new Error(`Errore server (${response.status})`);
     const data = await response.json();
-
     console.log("📩 Risposta server:", data);
-    
- const suggestionData = data?.suggestion || {};
 
-    // Crea l'oggetto completo della suggestion
-    const newSuggestion = {
-        action: suggestionData.mossa || "—",
-        noBust: suggestionData.no_bust != null ? suggestionData.no_bust : "-",
-        pvsd: suggestionData.pvsd != null ? suggestionData.pvsd : "-",
-        ev: suggestionData.ev != null ? suggestionData.ev : "-"
+    const suggestionData = data?.suggestion || {
+      mossaConsigliata: "—",
+      probabilitaBattereBanco: 0,
+      probabilitaNonSballo: 0,
+      valoreAtteso: 0
     };
 
-    // 🔹 Interpreta la risposta
-    const suggestion = data?.suggestion?.mossa || data?.suggestion?.action || "—";
-    const ev = data?.suggestion?.ev || 0;
-    const stats = data?.suggestion?.probabilita || {};
+    // Salvo la suggestion per eventuali controlli futuri
+    box.suggestion = suggestionData;
 
-    // 🔹 Aggiorna interfaccia
-    
-    box.suggestion = newSuggestion;
-    updateSuggestionUI(boxIndex);
-    return { action: suggestion, ev, trueCount: tc, stats };
+    // Aggiorno la UI con i nomi esatti che arrivano dall'AI
+    updateSuggestionUI(boxIndex, suggestionData);
+
+    return {
+      action: suggestionData.mossaConsigliata || "—",
+      ev: suggestionData.valoreAtteso || 0,
+      trueCount: tc,
+      stats: {
+        noBust: suggestionData.probabilitaNonSballo,
+        pvsd: suggestionData.probabilitaBattereBanco
+      }
+    };
 
   } catch (err) {
     console.error("❌ Errore nel contatto con API o Render:", err);
-    updateSuggestionUI(boxIndex, { action: "—", ev: 0 }, 0, {});
+    updateSuggestionUI(boxIndex, { mossaConsigliata: "—", probabilitaBattereBanco: 0, probabilitaNonSballo: 0, valoreAtteso: 0 });
     return { action: "—", ev: 0, trueCount: 0 };
   }
-  
 }
 
 

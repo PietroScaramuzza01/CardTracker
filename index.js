@@ -4,9 +4,14 @@ import dotenv from "dotenv";
 import fetch from "node-fetch"; // se usi Node < 18, altrimenti puoi rimuovere
 
 dotenv.config();
-
+const express = require('express');
+const cors = require('cors');
 const app = express();
-app.use(cors());
+
+app.use(cors({
+  origin: 'https://pietroscaramuzza01.github.io' // o '*' per test
+}));
+
 app.use(express.json());
 
 // 🔹 Endpoint test
