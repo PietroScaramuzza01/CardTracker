@@ -25,41 +25,44 @@ app.post("/api/suggestion", async (req, res) => {
 
     // 🔹 Prompt per GPT (puoi personalizzarlo)
     const prompt = `
-    Sei un assistente specializzato in Blackjack avanzato. 
-Il tuo compito è analizzare lo stato corrente del gioco e dare consigli sulla mossa ottimale. 
-Considera le seguenti informazioni che ti vengono passate:
+Agisci come un esperto di Blackjack con competenze statistiche e di conteggio carte (Hi-Lo system).  
+Il tuo compito è analizzare lo stato attuale del mazzo e della mano e restituire una decisione di gioco ottimale basata su calcolo probabilistico e simulazione Monte Carlo.
 
-1. La mano del giocatore (valore totale e singole carte, senza semi): ${playerCards.join(", ")}
-2. La carta visibile del banco: ${dealerCard}
-3. Le carte rimanenti nel mazzo : ${JSON.stringify(deckState)}
-4. Eventuali azioni precedenti del giocatore.
-5. running count: ${trueCount}
+Dati forniti:
+- Carte del giocatore (senza semi): ${playerCards.join(", ")}
+- Carta visibile del dealer: ${dealerCard}
+- Running/True Count: ${trueCount}
+- Stato del mazzo (numero di carte rimanenti per valore): ${JSON.stringify(deckState)}
 
-Obiettivi:
-- Calcolare la **probabilità che il giocatore non sballi** per ciascuna mossa possibile (hit, stand, double, split se applicabile).
-- Calcolare la **probabilità di battere il banco**, stimando il totale possibile del banco in base alle carte rimanenti.
-- Suggerire la **mossa ottimale**: hit, stand, double, split o cash out.
-  - Il cash out deve essere suggerito se il totale attuale del giocatore è vulnerabile rispetto alla stima del banco.
-- Restituire anche i dati di probabilità in un formato JSON chiaro.
+Ipotizza che:
+- Il banco si ferma su 17 (stand su soft 17).
+- Il mazzo è composto da ${Object.values(deckState).reduce((a,b)=>a+b,0)} carte rimanenti.
+- Gli assi possono valere 1 o 11 a seconda del contesto.
+- Il giocatore può scegliere tra: hit, stand, double, split, cash_out.
 
-Formato di risposta richiesto (JSON):
+Compito:
+1. Stima le probabilità di ciascuna mossa:
+   - Probabilità di NON sballare con **Hit**.
+   - Probabilità di vincere contro il banco con **Stand**.
+   - Probabilità attesa di vincita con **Double**.
+   - Probabilità di vantaggio medio con **Split** (se carte uguali).
+   - Probabilità attesa di mantenere un EV positivo con **Cash Out**.
+2. Puoi utilizzare simulazioni Monte Carlo (simulate 1000 round) o ragionamento probabilistico semplificato basato sul conteggio carte.
+3. Scegli la **mossa ottimale** (quella con il valore atteso di vincita più alto).
+4. Restituisci il risultato in formato JSON puro, senza spiegazioni testuali.
 
+Formato di risposta richiesto (solo JSON, nessun testo extra):
 {
   "mossaConsigliata": "hit | stand | double | split | cash_out",
-  "probabilitaNonSballo": 0-1,
-  "probabilitaBattereBanco": 0-1,
-  "note": "Eventuali osservazioni sul round"
+  "probabilitaNonSballo": numero tra 0 e 1,
+  "probabilitaBattereBanco": numero tra 0 e 1,
+  "valoreAtteso": numero tra -1 e +1 (facoltativo, se calcolato),
+  "motivoSintetico": "frase breve (max 10 parole)"
 }
 
-Concentrati sul **contesto corrente del mazzo** e sulla strategia più accurata possibile.
-Non fare supposizioni senza basi sulle carte già uscite.
+Restituisci solo JSON valido. Nessun testo o spiegazione fuori dal formato.
+`;
 
-
-
-    Mano giocatore: ${playerCards.join(", ")}
-    Carta dealer: ${dealerCard}
-    True Count: ${trueCount.toFixed(2)}
-    `;
 
     // 🔹 Chiamata API GPT
     const gptResponse = await fetch("https://api.openai.com/v1/chat/completions", {
