@@ -655,13 +655,13 @@ function updateSuggestionUI(boxIndex, res) {
   const boxEl = playerBoxes[boxIndex];
   if (!boxEl) return;
 
-  const ui = document.getElementById(`box-${boxIndex}`);
+  const ui = boxEl; // i box hanno già l'id player-1 ... player-7
   if (!ui) return;
 
-  const suggestedActionEl = ui.querySelector(".mossa");
+  const suggestedActionEl = ui.querySelector(".suggested-action");
   const noBustEl = ui.querySelector(".no-bust");
-  const pvsdEl = ui.querySelector(".pvsd");
-  const valoreAttesoEl = ui.querySelector(".ev");
+  const pvsdEl = ui.querySelector(".player-vs-dealer");
+  const valoreAttesoEl = ui.querySelector(".valore-atteso");
 
   if (!suggestedActionEl || !noBustEl || !pvsdEl || !valoreAttesoEl) {
     console.log("ATTENZIONE - elementi UI mancanti");
@@ -679,10 +679,10 @@ function updateSuggestionUI(boxIndex, res) {
   const ev = typeof res?.valoreAtteso === 'number' ? res.valoreAtteso : null;
 
   // 🔹 Aggiorna la UI con i dati AI
-  suggestedActionEl.textContent = `Mossa: ${action.toUpperCase()}`;
-  noBustEl.textContent = `No Bust: ${probSafe}`;
-  pvsdEl.textContent = `PvsD: ${probWin}`;
-  valoreAttesoEl.textContent = `Valore Atteso: ${ev !== null ? ev.toFixed(3) : '-'}`;
+  suggestedActionEl.textContent = `${action.toUpperCase()}`;
+  noBustEl.textContent = `${probSafe}`;
+  pvsdEl.textContent = `${probWin}`;
+  valoreAttesoEl.textContent = ev !== null ? ev.toFixed(3) : '-';
 
   // 🔹 Colore mossa
   let color = '#ccc';
@@ -701,7 +701,7 @@ function updateSuggestionUI(boxIndex, res) {
     bar.style.borderRadius = '3px';
     bar.style.marginTop = '4px';
     bar.style.background = '#999';
-    boxEl.querySelector('.suggestion').appendChild(bar);
+    ui.querySelector('.suggestion').appendChild(bar);
   }
 
   if (ev !== null) {
@@ -712,6 +712,7 @@ function updateSuggestionUI(boxIndex, res) {
     bar.style.background = '#999';
   }
 }
+
 
 
 // 🔹 Normalizza EV in percentuali proporzionali (0–1)
