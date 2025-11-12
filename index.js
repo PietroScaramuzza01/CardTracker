@@ -17,12 +17,12 @@ app.get("/", (req, res) => {
 // 🔹 Endpoint principale
 app.post("/api/suggestion", async (req, res) => {
   const { summary, playerCards, dealerCard, deckState } = req.body;
-  console.log("🧮 Ricevuto:", summary);
-  console.log(deckState);
+  console.log("🧮 Ricevuto summary:", summary);
+  console.log("📊 Deck state:", deckState);
 
   try {
-    // 🔸 Chiave API GPT dal file .env su Render
     const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+
 
     // 🔹 Prompt per GPT (puoi personalizzarlo)
     const prompt = `
@@ -87,24 +87,33 @@ Restituisci solo JSON valido.  Nessun testo o spiegazione fuori dal formato.
       }),
     });
 
+    if (!gptResponse.ok) throw new Error(`Errore GPT (${gptResponse.status})`);
+
     const gptData = await gptResponse.json();
-
-    // 🔹 Estrae testo e prova a convertire in JSON
     let suggestionText = gptData.choices?.[0]?.message?.content || "{}";
-    let suggestion;
-    try {
-      suggestion = JSON.parse(suggestionText);
-    } catch {
-      // Forza campi obbligatori se GPT non li manda
-suggestion = {
-  mossaConsigliata: suggestion?.mossaConsigliata || "—",
-  probabilitaNonSballo: suggestion?.probabilitaNonSballo ?? 0,
-  probabilitaBattereBanco: suggestion?.probabilitaBattereBanco ?? 0,
-  valoreAtteso: suggestion?.valoreAtteso ?? 0
-};
 
+    // 🔹 Default suggestion
+    let suggestion = {
+      mossaConsigliata: "—",
+      probabilitaNonSballo: 0,
+      probabilitaBattereBanco: 0,
+      valoreAtteso: 0
+    };
+
+    // 🔹 Prova a parsare la risposta GPT
+    try {
+      const parsed = JSON.parse(suggestionText);
+      suggestion = {
+        mossaConsigliata: parsed.mossaConsigliata || suggestion.mossaConsigliata,
+        probabilitaNonSballo: parsed.probabilitaNonSballo ?? suggestion.probabilitaNonSballo,
+        probabilitaBattereBanco: parsed.probabilitaBattereBanco ?? suggestion.probabilitaBattereBanco,
+        valoreAtteso: parsed.valoreAtteso ?? suggestion.valoreAtteso
+      };
+    } catch (err) {
+      console.warn("⚠️ GPT response non JSON, uso valori di default:", suggestionText);
     }
-console.log("GPT response raw:", suggestionText);
+
+    console.log("📩 Risposta suggerimento:", suggestion);
 
     res.json({
       success: true,
