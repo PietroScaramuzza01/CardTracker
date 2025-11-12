@@ -650,93 +650,60 @@ function loadState(){
   }
 }
 
-
-function updateSuggestionUI(boxIndex, res, tc, stats = {}) {
+function updateSuggestionUI(boxIndex, res) {
   const boxEl = playerBoxes[boxIndex];
   if (!boxEl) return;
 
-  const suggestionEl = boxEl.querySelector('.suggestion');
-  if (!suggestionEl) return;
+  const suggestedActionEl = boxEl.querySelector('.suggested-action');
+  const noBustEl = boxEl.querySelector('.no-bust');
+  const pvsdEl = boxEl.querySelector('.player-vs-dealer');
+  const valoreAttesoEl = boxEl.querySelector('.valore-atteso');
 
-  // Pulizia
-  suggestionEl.innerHTML = '';
+  if (!suggestedActionEl || !noBustEl || !pvsdEl || !valoreAttesoEl) return;
 
-  // Dati di base
-  const action = res?.action || "—";
-  const ev = typeof res?.ev === 'number' ? res.ev : null;
-  const motivo = res?.motivoSintetico || '';
-  const probWin = res?.probabilitaBattereBanco || null;
-  const probSafe = res?.probabilitaNonSballo || null;
-  const tcText = typeof tc === 'number' ? tc.toFixed(2) : tc;
+  // Dati AI
+  const action = res?.mossaConsigliata || '—';
+  const probWin = typeof res?.probabilitaBattereBanco === 'number' 
+                  ? (res.probabilitaBattereBanco * 100).toFixed(1) + '%' : '-';
+  const probSafe = typeof res?.probabilitaNonSballo === 'number' 
+                   ? (res.probabilitaNonSballo * 100).toFixed(1) + '%' : '-';
+  const ev = typeof res?.valoreAtteso === 'number' ? res.valoreAtteso : null;
 
-  // Riga azione
-  const actionLine = document.createElement('div');
-  actionLine.className = 'suggestion-action';
+  // Aggiornamento span
+  suggestedActionEl.textContent = action.toUpperCase();
+  noBustEl.textContent = probSafe;
+  pvsdEl.textContent = probWin;
+  valoreAttesoEl.textContent = ev !== null ? ev.toFixed(3) : '-';
 
-  // Colore azione
+  // Colore mossa
   let color = '#ccc';
   if (action === 'hit') color = '#00aaff';
   else if (action === 'stand') color = '#ffaa00';
   else if (action === 'double') color = '#00ff88';
   else if (action === 'split') color = '#ff66ff';
+  suggestedActionEl.style.color = color;
 
-  // Icona decorativa per EV+
-  const trendIcon = ev > 0 ? '▲' : ev < 0 ? '▼' : '•';
-  const evColor = ev > 0 ? '#00ff88' : ev < 0 ? '#ff4444' : '#999';
-
-  actionLine.innerHTML = `
-    <strong style="color:${color}">${action.toUpperCase()}</strong> 
-    <small>(EV: <span style="color:${evColor}">${ev?.toFixed(3) ?? '?'}</span> | TC: ${tcText})</small> 
-    <span style="color:${evColor};font-size:0.8em;margin-left:6px;">${trendIcon}</span>
-  `;
-  suggestionEl.appendChild(actionLine);
-
-  // Barra visiva EV
-  if (typeof ev === 'number') {
-    const bar = document.createElement('div');
+  // Barra EV visiva
+  let bar = boxEl.querySelector('.ev-bar');
+  if (!bar) {
+    bar = document.createElement('div');
     bar.className = 'ev-bar';
     bar.style.height = '6px';
     bar.style.borderRadius = '3px';
-    bar.style.marginTop = '5px';
-    bar.style.background = ev >= 0 ? '#00ff8855' : '#ff444455';
+    bar.style.marginTop = '4px';
+    bar.style.background = '#999';
+    boxEl.querySelector('.suggestion').appendChild(bar);
+  }
+
+  if (ev !== null) {
     bar.style.width = `${Math.min(Math.abs(ev) * 100, 100)}%`;
-    suggestionEl.appendChild(bar);
+    bar.style.background = ev >= 0 ? '#00ff8855' : '#ff444455';
+  } else {
+    bar.style.width = '0';
+    bar.style.background = '#999';
   }
-
-  // Percentuali se presenti
-  const keys = Object.keys(stats);
-  if (keys.length) {
-    const statsLine = document.createElement('div');
-    statsLine.className = 'suggestion-stats';
-    statsLine.style.marginTop = '6px';
-    statsLine.style.fontSize = '0.85em';
-    statsLine.style.color = '#bbb';
-
-    const parts = keys.map(k => {
-      const val = stats[k];
-      const pct = typeof val === 'number' ? (val * 100).toFixed(1) + '%' : String(val);
-      return `${k.charAt(0).toUpperCase() + k.slice(1)}: ${pct}`;
-    });
-
-    statsLine.textContent = parts.join(' | ');
-    suggestionEl.appendChild(statsLine);
-  }
-
-  // Tooltip informativo
-  suggestionEl.title = motivo ||
-    `Win: ${(probWin * 100).toFixed(1)}% | Safe: ${(probSafe * 100).toFixed(1)}%`;
-
-  // Riga debug
-  const debugLine = document.createElement('div');
-  debugLine.className = 'suggestion-debug';
-  debugLine.style.fontSize = '0.75em';
-  debugLine.style.marginTop = '4px';
-  debugLine.style.color = '#999';
-
-  const box = boxes[boxIndex];
-  debugLine.textContent = box && box.cards ? `Hand: [${box.cards.join(', ')}]` : '';
-  suggestionEl.appendChild(debugLine);
 }
+
 
 // 🔹 Normalizza EV in percentuali proporzionali (0–1)
 /*function normalizeEV(evResult) {
