@@ -61,7 +61,7 @@ Compito:
 3. Scegli la **mossa ottimale** (quella con il valore atteso di vincita più alto).
 4. Restituisci il risultato in formato JSON puro
 
-Formato di risposta richiesto :
+Formato di risposta richiesto (solo json puro):
 {
   "mossaConsigliata": "hit | stand | double | split | cash_out",
   "probabilitaNonSballo": numero tra 0 e 1,
@@ -69,7 +69,7 @@ Formato di risposta richiesto :
   "valoreAtteso": numero tra -1 e +1
 }
 
-Restituisci solo JSON valido.
+Restituisci solo JSON valido.  Nessun testo o spiegazione fuori dal formato.
 `;
 
 
