@@ -95,7 +95,14 @@ Restituisci solo JSON valido.  Nessun testo o spiegazione fuori dal formato.
     try {
       suggestion = JSON.parse(suggestionText);
     } catch {
-      suggestion = { message: suggestionText };
+      // Forza campi obbligatori se GPT non li manda
+suggestion = {
+  mossaConsigliata: suggestion?.mossaConsigliata || "—",
+  probabilitaNonSballo: suggestion?.probabilitaNonSballo ?? 0,
+  probabilitaBattereBanco: suggestion?.probabilitaBattereBanco ?? 0,
+  valoreAtteso: suggestion?.valoreAtteso ?? 0
+};
+
     }
 console.log("GPT response raw:", suggestionText);
 
