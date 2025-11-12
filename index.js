@@ -69,6 +69,8 @@ Formato di risposta richiesto (solo json):
   "valoreAtteso": numero tra -1 e +1
 }
 
+fai attenzione al formato di output! le variabili devono chiamarsi cosi.
+
 Restituisci solo JSON valido.  Nessun testo o spiegazione fuori dal formato.
 `;
 
@@ -93,12 +95,7 @@ Restituisci solo JSON valido.  Nessun testo o spiegazione fuori dal formato.
     let suggestionText = gptData.choices?.[0]?.message?.content || "{}";
 
     // 🔹 Default suggestion
-    let suggestion = {
-      mossaConsigliata,
-      probabilitaNonSballo,
-      probabilitaBattereBanco,
-      valoreAtteso
-    };
+    let suggestion;
 
     // 🔹 Prova a parsare la risposta GPT
     try {
