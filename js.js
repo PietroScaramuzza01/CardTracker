@@ -651,6 +651,7 @@ function loadState(){
 }
 
 function updateSuggestionUI(boxIndex, res) {
+  console.log(res);
   const boxEl = playerBoxes[boxIndex];
   if (!boxEl) return;
 
