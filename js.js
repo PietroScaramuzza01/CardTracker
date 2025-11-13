@@ -412,6 +412,7 @@ async function addCard(card) {
   updateUI();
   updateDealerCard();
   updateRightSide();
+await updateRightSide();
 
   console.log(`🃏 addCard: aggiunta carta ${card} al box ${recipientIndex + 1}`);
 }
@@ -423,7 +424,7 @@ async function addCard(card) {
 
 // === assegna NEXT initial card seguendo sequenza cyclic player..dealer .. player.. fino a completamento ===
 // funzione che assegna automaticamente le carte iniziali nell'ordine corretto
-function assignNextInitialCard(card) {
+async function assignNextInitialCard(card) {
   const activeBoxes = boxes.filter(b => b.active);
 
   // Trova quante carte totali sono state già distribuite
@@ -464,16 +465,21 @@ function assignNextInitialCard(card) {
 
     // Ora possiamo calcolare il suggerimento (dealerCard esiste)
     if (dealerCard) {
-      const suggestionResult = computeSuggestionForBox(idx) || {};
-      nextBox.suggestion = suggestionResult.action || "—";
+  for (const [i, b] of boxes.entries()) {
+    if (b.active && b.cards.length >= 2) {
+      const result = await computeSuggestionForBox(i);
+      b.suggestion = result?.action || "—";
+    }
+
       console.log(
         `Box ${idx + 1} (Initial) - Carte: [${nextBox.cards.join(", ")}], Suggerimento: ${nextBox.suggestion}`
       );
     }
-
+  }
     updateDealerCard();
     updateRightSide();
     checkInitialDistributionComplete();
+    computeSuggestionForBox()
     return;
   }
 
@@ -494,7 +500,7 @@ function assignNextInitialCard(card) {
 
 
 
-function checkInitialDistributionComplete() {
+async function checkInitialDistributionComplete() {
   const activeBoxes = boxes.filter(b => b.active);
 
   // Nessun box attivo? Niente da controllare
@@ -517,14 +523,15 @@ function checkInitialDistributionComplete() {
     initialDistributionComplete = true;
 
     // Aggiorna i suggerimenti per tutti i box attivi
-    activeBoxes.forEach((b, i) => {
-      const boxIndex = boxes.indexOf(b);
-      const suggestionResult = computeSuggestionForBox(boxIndex) || {};
-      b.suggestion = suggestionResult.action || "—";
-      console.log(
-        `🎯 Box ${boxIndex + 1} (Ready) - Carte: [${b.cards.join(", ")}], Suggerimento: ${b.suggestion}`
-      );
-    });
+    for (const b of activeBoxes) {
+  const boxIndex = boxes.indexOf(b);
+  const suggestionResult = await computeSuggestionForBox(boxIndex);
+  b.suggestion = suggestionResult?.action || "—";
+  console.log(
+    `🎯 Box ${boxIndex + 1} (Ready) - Carte: [${b.cards.join(", ")}], Suggerimento: ${b.suggestion}`
+  );
+}
+
 
     updateDealerCard();
     updateRightSide();
@@ -560,12 +567,13 @@ function drawInitialCards() {
 
 
 // --- UPDATE SUGGESTIONS helper ---
-function updateAllSuggestions() {
+async function updateAllSuggestions() {
   if (!dealerCard) return; // sicurezza
-  boxes.forEach((b, idx) => {
+  boxes.forEach(async(b, idx) => {
     if (b.active && b.owner && b.cards.length > 0) {
-      const res = computeSuggestionForBox(idx);
-      b.suggestion = res?.action || "—";
+      const res = await computeSuggestionForBox(idx);
+b.suggestion = res?.action || "—";
+
     }
   });
   updateDealerCard();
