@@ -847,15 +847,53 @@ async function computeSuggestionForBox(boxIndex) {
 
     console.log("🚀 Invio dati round al server:", payload);
 
-    const response = await fetch("https://cardtracker-2.onrender.com/api/suggestion", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+   const response = await fetch("https://cardtracker-2.onrender.com/api/suggestion", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(payload),
+});
 
-    if (!response.ok) throw new Error(`Errore server (${response.status})`);
-    const data = await response.json();
-    console.log("📩 Risposta server:", data);
+const data = await response.json();
+
+console.log("📩 Risposta server:", data);
+
+if (data?.mossaConsigliata) {
+  updateSuggestionUI(boxIndex, data);
+  return {
+    action: data.mossaConsigliata,
+    ev: data.valoreAtteso ?? 0,
+    trueCount: tc,
+    stats: {
+      noBust: data.probabilitaNonSballo,
+      pvsd: data.probabilitaBattereBanco
+    }
+  };
+}
+
+// Se arriva struttura con result
+if (data?.result) {
+  updateSuggestionUI(boxIndex, data.result);
+  return {
+    action: data.result.mossaConsigliata,
+    ev: data.result.valoreAtteso ?? 0,
+    trueCount: tc,
+    stats: {
+      noBust: data.result.probabilitaNonSballo,
+      pvsd: data.result.probabilitaBattereBanco
+    }
+  };
+}
+
+// Altrimenti fallback
+console.warn("⚠️ computeSuggestionForBox: risposta inattesa", data);
+updateSuggestionUI(boxIndex, { 
+  mossaConsigliata: "—", 
+  probabilitaBattereBanco: 0, 
+  probabilitaNonSballo: 0, 
+  valoreAtteso: 0 
+});
+//return { action: "—", ev: 0, trueCount: tc };
+
 
     const suggestionData = data?.suggestion || {
       mossaConsigliata: "—",
@@ -883,7 +921,7 @@ async function computeSuggestionForBox(boxIndex) {
   } catch (err) {
     console.error("❌ Errore nel contatto con API o Render:", err);
     updateSuggestionUI(boxIndex, { mossaConsigliata: "—", probabilitaBattereBanco: 0, probabilitaNonSballo: 0, valoreAtteso: 0 });
-    return { action: "—", ev: 0, trueCount: 0 };
+    return { action: "—", ev: 0, trueCount: tc };
   }
 }
 
