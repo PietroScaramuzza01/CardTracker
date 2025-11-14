@@ -93,35 +93,58 @@ Restituisci solo JSON valido.  Nessun testo o spiegazione fuori dal formato.
     let suggestionText = gptData.choices?.[0]?.message?.content || "{}";
 
     // 🔹 Default suggestion
-    let suggestion = {
-  mossaConsigliata: "—",
-  probabilitaNonSballo: 0,
-  probabilitaBattereBanco: 0,
+    // default suggestion valida (mai undefined)
+    // 🔹 Default suggestion (mai undefined)
+let suggestion = {
+  mossaConsigliata: "stand",
+  probabilitaNonSballo: 1,
+  probabilitaBattereBanco: 0.5,
   valoreAtteso: 0
 };
 
-
-    // 🔹 Prova a parsare la risposta GPT
-    try {
-  const parsed = JSON.parse(suggestionText);
-  suggestion = {
-    mossaConsigliata: parsed.mossaConsigliata ?? suggestion.mossaConsigliata,
-    probabilitaNonSballo: parsed.probabilitaNonSballo ?? suggestion.probabilitaNonSballo,
-    probabilitaBattereBanco: parsed.probabilitaBattereBanco ?? suggestion.probabilitaBattereBanco,
-    valoreAtteso: parsed.valoreAtteso ?? suggestion.valoreAtteso
-  };
-} catch (err) {
-  console.warn("⚠️ GPT response non JSON:", suggestionText);
+function tryParseJsonFromText(text) {
+  if (!text || typeof text !== 'string') return null;
+  // cerca il primo oggetto JSON presente nel testo (dalla prima "{" all'ultima "}")
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start === -1 || end === -1 || end <= start) return null;
+  const jsonStr = text.slice(start, end + 1);
+  try {
+    return JSON.parse(jsonStr);
+  } catch (e) {
+    return null;
+  }
 }
 
+try {
+  // prova a parsare direttamente
+  const parsedDirect = tryParseJsonFromText(suggestionText);
 
-   console.log("📩 Risposta suggerimento finale:", suggestion);
+  if (parsedDirect && typeof parsedDirect === 'object') {
+    // normalizza i campi previsti (usa ?? per preservare default)
+    suggestion.mossaConsigliata = parsedDirect.mossaConsigliata ?? suggestion.mossaConsigliata;
+    suggestion.probabilitaNonSballo = Number(parsedDirect.probabilitaNonSballo ?? suggestion.probabilitaNonSballo);
+    suggestion.probabilitaBattereBanco = Number(parsedDirect.probabilitaBattereBanco ?? suggestion.probabilitaBattereBanco);
+    suggestion.valoreAtteso = Number(parsedDirect.valoreAtteso ?? suggestion.valoreAtteso);
+  } else {
+    console.warn("⚠️ Non ho trovato JSON valido nella risposta GPT, testo ricevuto:", suggestionText);
+  }
+} catch (err) {
+  console.warn("⚠️ Errore parsing GPT response:", err, suggestionText);
+}
 
+// Log finale debug
+console.log("📩 Risposta suggerimento finale (normalized):", suggestion);
 
-    res.json({
-      success: true,
-      suggestion,
-    });
+// Rispondi anche mettendo i campi in root per compatibilità frontend
+res.json({
+  success: true,
+  suggestion,
+  mossaConsigliata: suggestion.mossaConsigliata,
+  probabilitaNonSballo: suggestion.probabilitaNonSballo,
+  probabilitaBattereBanco: suggestion.probabilitaBattereBanco,
+  valoreAtteso: suggestion.valoreAtteso
+});
 
   } catch (error) {
     console.error("❌ Errore API:", error);
