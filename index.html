@@ -3,15 +3,168 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Card Tracker 🃏 V. 0.4.4 Montecarlo</title>
+  <title>Card Tracker 🃏 V.0.4.4 Montecarlo</title>
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
-  <div class="container">
-    <div class="card-tracker">
-      <h1>Card Tracker</h1>
-      <p class="subtitle">Conteggio Blackjack Style</p>
+<div class="container">
+  <!-- ==============================
+       AREA SUPERIORE (DEALER + BOX)
+       ============================== -->
+  <div class="top-area">
+    
+
+
+    <!-- COLONNA DESTRA: DEALER + PLAYERS -->
+    <div class="right-side">
+
+      <button id="close-round">Chiudi Round</button>
+      
+
+      <div class="dealer-box">
+        <h3>Dealer</h3>
+        <div class="card-display" id="dealer-card">—</div>
+      </div>
+
+      <div class="players-row">
+        <!-- ===== 7 BOX GIOCATORI ===== -->
+        <!-- PLAYER TEMPLATE RIPETUTO 7 VOLTE -->
+
+        <div class="player-box" id="player-1">
+          <div class="player-header">
+            <span>1</span>
+            <label><input type="checkbox" class="active-check"> Attivo</label>
+            <label><input type="checkbox" class="owner-check"> Mio</label>
+          </div>
+          <div class="card-display">—</div>
+          <button class="update-suggestion">Aggiorna</button>
+          <div class="suggestion">
+            <div class="suggestion-text">
+              Mossa: <span class="suggested-action">-</span><br>
+              No Bust: <span class="no-bust">-</span><br>
+              PvsD: <span class="player-vs-dealer">-</span><br>
+              Valore Atteso: <span class="valore-atteso">-</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- PLAYER 2 -->
+        <div class="player-box" id="player-2">
+          <div class="player-header">
+            <span>2</span>
+            <label><input type="checkbox" class="active-check"> Attivo</label>
+            <label><input type="checkbox" class="owner-check"> Mio</label>
+          </div>
+          <div class="card-display">—</div>
+          <button class="update-suggestion">Aggiorna</button>
+          <div class="suggestion"><div class="suggestion-text">
+            Mossa: <span class="suggested-action">-</span><br>
+            No Bust: <span class="no-bust">-</span><br>
+            PvsD: <span class="player-vs-dealer">-</span><br>
+            Valore Atteso: <span class="valore-atteso">-</span>
+          </div></div>
+        </div>
+
+        <!-- PLAYER 3 -->
+        <div class="player-box" id="player-3">
+          <div class="player-header">
+            <span>3</span>
+            <label><input type="checkbox" class="active-check"> Attivo</label>
+            <label><input type="checkbox" class="owner-check"> Mio</label>
+          </div>
+          <div class="card-display">—</div>
+          <button class="update-suggestion">Aggiorna</button>
+          <div class="suggestion"><div class="suggestion-text">
+            Mossa: <span class="suggested-action">-</span><br>
+            No Bust: <span class="no-bust">-</span><br>
+            PvsD: <span class="player-vs-dealer">-</span><br>
+            Valore Atteso: <span class="valore-atteso">-</span>
+          </div></div>
+        </div>
+
+        <!-- PLAYER 4 -->
+        <div class="player-box" id="player-4">
+          <div class="player-header">
+            <span>4</span>
+            <label><input type="checkbox" class="active-check"> Attivo</label>
+            <label><input type="checkbox" class="owner-check"> Mio</label>
+          </div>
+          <div class="card-display">—</div>
+          <button class="update-suggestion">Aggiorna</button>
+          <div class="suggestion"><div class="suggestion-text">
+            Mossa: <span class="suggested-action">-</span><br>
+            No Bust: <span class="no-bust">-</span><br>
+            PvsD: <span class="player-vs-dealer">-</span><br>
+            Valore Atteso: <span class="valore-atteso">-</span>
+          </div></div>
+        </div>
+
+        <!-- PLAYER 5 -->
+        <div class="player-box" id="player-5">
+          <div class="player-header">
+            <span>5</span>
+            <label><input type="checkbox" class="active-check"> Attivo</label>
+            <label><input type="checkbox" class="owner-check"> Mio</label>
+          </div>
+          <div class="card-display">—</div>
+          <button class="update-suggestion">Aggiorna</button>
+          <div class="suggestion"><div class="suggestion-text">
+            Mossa: <span class="suggested-action">-</span><br>
+            No Bust: <span class="no-bust">-</span><br>
+            PvsD: <span class="player-vs-dealer">-</span><br>
+            Valore Atteso: <span class="valore-atteso">-</span>
+          </div></div>
+        </div>
+
+        <!-- PLAYER 6 -->
+        <div class="player-box" id="player-6">
+          <div class="player-header">
+            <span>6</span>
+            <label><input type="checkbox" class="active-check"> Attivo</label>
+            <label><input type="checkbox" class="owner-check"> Mio</label>
+          </div>
+          <div class="card-display">—</div>
+          <button class="update-suggestion">Aggiorna</button>
+          <div class="suggestion"><div class="suggestion-text">
+            Mossa: <span class="suggested-action">-</span><br>
+            No Bust: <span class="no-bust">-</span><br>
+            PvsD: <span class="player-vs-dealer">-</span><br>
+            Valore Atteso: <span class="valore-atteso">-</span>
+          </div></div>
+        </div>
+
+        <!-- PLAYER 7 -->
+        <div class="player-box" id="player-7">
+          <div class="player-header">
+            <span>7</span>
+            <label><input type="checkbox" class="active-check"> Attivo</label>
+            <label><input type="checkbox" class="owner-check"> Mio</label>
+          </div>
+          <div class="card-display">—</div>
+          <button class="update-suggestion">Aggiorna</button>
+          <div class="suggestion"><div class="suggestion-text">
+            Mossa: <span class="suggested-action">-</span><br>
+            No Bust: <span class="no-bust">-</span><br>
+            PvsD: <span class="player-vs-dealer">-</span><br>
+            Valore Atteso: <span class="valore-atteso">-</span>
+          </div></div>
+        </div>
+
+      </div><!-- fine players -->
+
+    </div>
+  </div> <!-- fine top-area -->
+
+  <!-- ==============================
+       AREA INFERIORE (SX + DX)
+       ============================== -->
+  <div class="bottom-area">
+
+    <!-- SINISTRA INF: DETTAGLI MAZZO -->
+    <div class="deck-details-area">
+      <h2>Dettagli Mazzo</h2>
 
       <div class="stats">
         <div><span>Mazzi in uso:</span><input type="number" id="numDecks" value="8" min="1"></div>
@@ -19,211 +172,61 @@
         <div><span>Carte rimanenti:</span><strong id="remaining-cards">97</strong></div>
         <div><span>Conteggio:</span><strong id="running-count">+3</strong></div>
         <div><span>True Count:</span><strong id="true-count">0</strong></div>
-        <div><span>Ultima carta inserita:</span><strong id="last-card">NA</strong></div>
+        <div><span>Ultima carta:</span><strong id="last-card">NA</strong></div>
       </div>
 
-      <div class="input-row">
-        <label>Inserisci carta:</label>
-        <input type="text" id="card-input" maxlength="2">
-        <button id="add-card">Aggiungi</button>
-      </div>
-
-      <div class="grid grid-cols-5 gap-3 text-lg mt-4">
-  <button>A</button>
-  <button>2</button>
-  <button>3</button>
-  <button>4</button>
-  <button>5</button>
-  <button>6</button>
-  <button>7</button>
-  <button>8</button>
-  <button>9</button>
-  <button>10</button>
-  <button>J</button>
-  <button>Q</button>
-  <button>K</button>
-  <br>
-  
-</div>
-<button class="grid grid-cols-5 gap-3 text-lg mt-4" id="undo">Undo</button>
-
-      <h2>Stato del mazzo</h2>
+      <h3>Stato del Mazzo</h3>
       <table>
         <thead>
-          <tr>
-            <th>Valore</th>
-            <th>Rimaste</th>
-            <th>Conteggio effetto</th>
-          </tr>
+          <tr><th>Valore</th><th>Rimaste</th><th>Effetto</th></tr>
         </thead>
-        <tbody>
-          <tr><td>A</td><td>8</td><td>-1</td></tr>
-          <tr><td>3</td><td>12</td><td>+1</td></tr>
-          <tr><td>2</td><td>13</td><td>+1</td></tr>
-          <tr><td>K</td><td>17</td><td>-1</td></tr>
-        </tbody>
+        <tbody id="deck-table-body"></tbody>
       </table>
-<button id="download-state">⬇️ Esporta Stato</button>
-<input type="file" id="upload-state" accept="application/json" style="display:none;">
-<label for="upload-state" class="upload-btn">⬆️ Importa Stato</label>
+
+      <button id="download-state">⬇️ Esporta Stato</button>
+      <input type="file" id="upload-state" accept="application/json" style="display:none;">
+      <label for="upload-state" class="upload-btn">⬆️ Importa Stato</label>
 
       <div class="actions">
-       
         <button id="reset">Reset</button>
         <button id="save">Salva stato</button>
         <button id="clear-storage">Reset Completo</button>
-
       </div>
 
       <div class="summary">
-  
-  <p>Carte alte rimanenti: <strong id="high-cards">28</strong></p>
-  <p>Carte basse: <strong id="low-cards">34</strong></p>
-  <p>J.V. 0.2</p>
-</div>
-
+        <p>Carte alte: <strong id="high-cards">28</strong></p>
+        <p>Carte basse: <strong id="low-cards">34</strong></p>
+        <p>J.V. 0.2</p>
+      </div>
     </div>
 
-    <!-- Colonna destra: modulo giocatori / dealer -->
-    <div class="right-side">
-        <button id="close-round">Chiudi Round</button>
-      <h2>Round Corrente</h2>
-      <div class="dealer-box">
-        <h3>Dealer</h3>
-        <div class="card-display" id="dealer-card">—</div>
+    <!-- DESTRA INF: BOTTONI CARTE -->
+    <div class="card-buttons-area">
+      <h3>Inserisci Carta</h3>
+
+      <div class="grid">
+        <button>A</button>
+        <button>2</button>
+        <button>3</button>
+        <button>4</button>
+        <button>5</button>
+        <button>6</button>
+        <button>7</button>
+        <button>8</button>
+        <button>9</button>
+        <button>10</button>
+        <button>J</button>
+        <button>Q</button>
+        <button>K</button>
       </div>
 
-     <!-- <div class="player-controls">
-        <label>Seleziona numero di giocatori attivi:</label>
-        <input type="number" id="active-players" value="5" min="1" max="7">
-      </div>
--->
-      <div class="players-row">
-  <!-- 7 box giocatori uniformati -->
-  <div class="player-box" id="player-1">
-    <div class="player-header">
-      <span>1</span>
-      <label><input type="checkbox" class="active-check"> Attivo</label>
-      <label><input type="checkbox" class="owner-check"> Mio</label>
+      <button id="undo">Undo</button>
     </div>
-    <div class="card-display">—</div>
-    <button class="update-suggestion">Aggiorna</button>
-    <div class="suggestion"><div class="suggestion-text">
-  Mossa: <span class="suggested-action">-</span><br>
-  No Bust: <span class="no-bust">-</span><br>
-  PvsD: <span class="player-vs-dealer">-</span><br>
-  valore Atteso: <span class="valore-atteso">-</span>
-</div>
-</div>
-  </div>
 
-  <div class="player-box" id="player-2">
-    <div class="player-header">
-      <span>2</span>
-      <label><input type="checkbox" class="active-check"> Attivo</label>
-      <label><input type="checkbox" class="owner-check"> Mio</label>
-    </div>
-    <div class="card-display">—</div>
-    <button class="update-suggestion">Aggiorna</button>
-    <div class="suggestion"><div class="suggestion-text">
-  Mossa: <span class="suggested-action">-</span><br>
-  No Bust: <span class="no-bust">-</span><br>
-  PvsD: <span class="player-vs-dealer">-</span><br>
-  valore Atteso: <span class="valore-atteso">-</span>
-</div>
-</div>
-  </div>
+  </div><!-- fine bottom-area -->
 
-  <div class="player-box" id="player-3">
-    <div class="player-header">
-      <span>3</span>
-      <label><input type="checkbox" class="active-check"> Attivo</label>
-      <label><input type="checkbox" class="owner-check"> Mio</label>
-    </div>
-    <div class="card-display">—</div>
-    <button class="update-suggestion">Aggiorna</button>
-    <div class="suggestion"><div class="suggestion-text">
-  Mossa: <span class="suggested-action">-</span><br>
-  No Bust: <span class="no-bust">-</span><br>
-  PvsD: <span class="player-vs-dealer">-</span><br>
-  valore Atteso: <span class="valore-atteso">-</span>
-</div>
-</div>
-  </div>
+</div> <!-- container -->
 
-  <div class="player-box" id="player-4">
-    <div class="player-header">
-      <span>4</span>
-      <label><input type="checkbox" class="active-check"> Attivo</label>
-      <label><input type="checkbox" class="owner-check"> Mio</label>
-    </div>
-    <div class="card-display">—</div>
-    <button class="update-suggestion">Aggiorna</button>
-    <div class="suggestion"><div class="suggestion-text">
-  Mossa: <span class="suggested-action">-</span><br>
-  No Bust: <span class="no-bust">-</span><br>
-  PvsD: <span class="player-vs-dealer">-</span><br>
-  valore Atteso: <span class="valore-atteso">-</span>
-</div>
-</div>
-  </div>
-
-  <div class="player-box" id="player-5">
-    <div class="player-header">
-      <span>5</span>
-      <label><input type="checkbox" class="active-check"> Attivo</label>
-      <label><input type="checkbox" class="owner-check"> Mio</label>
-    </div>
-    <div class="card-display">—</div>
-    <button class="update-suggestion">Aggiorna</button>
-    <div class="suggestion"><div class="suggestion-text">
-  Mossa: <span class="suggested-action">-</span><br>
-  No Bust: <span class="no-bust">-</span><br>
-  PvsD: <span class="player-vs-dealer">-</span><br>
-  valore Atteso: <span class="valore-atteso">-</span>
-</div>
-</div>
-  </div>
-
-  <div class="player-box" id="player-6">
-    <div class="player-header">
-      <span>6</span>
-      <label><input type="checkbox" class="active-check"> Attivo</label>
-      <label><input type="checkbox" class="owner-check"> Mio</label>
-    </div>
-    <div class="card-display">—</div>
-    <button class="update-suggestion">Aggiorna</button>
-    <div class="suggestion"><div class="suggestion-text">
-  Mossa: <span class="suggested-action">-</span><br>
-  No Bust: <span class="no-bust">-</span><br>
-  PvsD: <span class="player-vs-dealer">-</span><br>
-  valore Atteso: <span class="valore-atteso">-</span>
-</div>
-</div>
-  </div>
-
-  <div class="player-box" id="player-7">
-    <div class="player-header">
-      <span>7</span>
-      <label><input type="checkbox" class="active-check"> Attivo</label>
-      <label><input type="checkbox" class="owner-check"> Mio</label>
-    </div>
-    <div class="card-display">—</div>
-    <button class="update-suggestion">Aggiorna</button>
-   <div class="suggestion"><div class="suggestion-text">
-  Mossa: <span class="suggested-action">-</span><br>
-  No Bust: <span class="no-bust">-</span><br>
-  PvsD: <span class="player-vs-dealer">-</span><br>
-  valore Atteso: <span class="valore-atteso">-</span>
-</div>
-</div>
-  </div>
-</div>
-
-    </div>
-  </div>
-  
-
-  <script src="js.js"></script>
+<script src="js.js"></script>
 </body>
 </html>
