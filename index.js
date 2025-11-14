@@ -93,22 +93,30 @@ Restituisci solo JSON valido.  Nessun testo o spiegazione fuori dal formato.
     let suggestionText = gptData.choices?.[0]?.message?.content || "{}";
 
     // 🔹 Default suggestion
-    let suggestion ;
+    let suggestion = {
+  mossaConsigliata: "—",
+  probabilitaNonSballo: 0,
+  probabilitaBattereBanco: 0,
+  valoreAtteso: 0
+};
+
 
     // 🔹 Prova a parsare la risposta GPT
     try {
-      const parsed = JSON.parse(suggestionText);
-      suggestion = {
-        mossaConsigliata: parsed.mossaConsigliata || suggestion.mossaConsigliata,
-        probabilitaNonSballo: parsed.probabilitaNonSballo ?? suggestion.probabilitaNonSballo,
-        probabilitaBattereBanco: parsed.probabilitaBattereBanco ?? suggestion.probabilitaBattereBanco,
-        valoreAtteso: parsed.valoreAtteso ?? suggestion.valoreAtteso
-      };
-    } catch (err) {
-      console.warn("⚠️ GPT response non JSON, uso valori di default:", suggestionText);
-    }
+  const parsed = JSON.parse(suggestionText);
+  suggestion = {
+    mossaConsigliata: parsed.mossaConsigliata ?? suggestion.mossaConsigliata,
+    probabilitaNonSballo: parsed.probabilitaNonSballo ?? suggestion.probabilitaNonSballo,
+    probabilitaBattereBanco: parsed.probabilitaBattereBanco ?? suggestion.probabilitaBattereBanco,
+    valoreAtteso: parsed.valoreAtteso ?? suggestion.valoreAtteso
+  };
+} catch (err) {
+  console.warn("⚠️ GPT response non JSON:", suggestionText);
+}
 
-    console.log("📩 Risposta suggerimento:", suggestion);
+
+   console.log("📩 Risposta suggerimento finale:", suggestion);
+
 
     res.json({
       success: true,
