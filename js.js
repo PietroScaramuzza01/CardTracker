@@ -856,7 +856,7 @@ async function computeSuggestionForBox(boxIndex) {
 const data = await response.json();
 
 console.log("📩 Risposta server:", data);
-
+// --- controlla varie forme di risposta ---
 if (data?.mossaConsigliata) {
   updateSuggestionUI(boxIndex, data);
   return {
@@ -870,7 +870,21 @@ if (data?.mossaConsigliata) {
   };
 }
 
-// Se arriva struttura con result
+// ✅ caso server: { success:true, suggestion:{...} }
+if (data?.suggestion?.mossaConsigliata) {
+  updateSuggestionUI(boxIndex, data.suggestion);
+  return {
+    action: data.suggestion.mossaConsigliata,
+    ev: data.suggestion.valoreAtteso ?? 0,
+    trueCount: tc,
+    stats: {
+      noBust: data.suggestion.probabilitaNonSballo,
+      pvsd: data.suggestion.probabilitaBattereBanco
+    }
+  };
+}
+
+// fallback alternativo
 if (data?.result) {
   updateSuggestionUI(boxIndex, data.result);
   return {
@@ -883,6 +897,7 @@ if (data?.result) {
     }
   };
 }
+
 
 // Altrimenti fallback
 console.warn("⚠️ computeSuggestionForBox: risposta inattesa", data);
