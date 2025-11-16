@@ -896,8 +896,11 @@ function computeLocalStats(box, dealerCard, deckState, runningCount, remainingCa
 // --------- computeSuggestionForBox (rivista) ----------
 async function computeSuggestionForBox(boxIndex) {
   const box = boxes[boxIndex];
+
+  // Controllo preliminare
   if (!box || !box.active || !box.owner || !box.cards?.length || !dealerCard || dealerCard === "—") {
-    updateSuggestionUI(boxIndex, { mossaConsigliata: "—", probabilitaBattereBanco: 0, probabilitaNonSballo: 0, valoreAtteso: 0 });
+    const emptySuggestion = { mossaConsigliata: "—", probabilitaBattereBanco: 0, probabilitaNonSballo: 0, valoreAtteso: 0 };
+    updateSuggestionUI(boxIndex, emptySuggestion);
     return { action: "—", ev: 0, trueCount: 0 };
   }
 
@@ -909,110 +912,53 @@ async function computeSuggestionForBox(boxIndex) {
     const tc = decksRemaining > 0 ? runningCount / decksRemaining : 0;
 
     const payload = {
-  targetBoxIndex: boxIndex,
-  targetTotalCards : totalCards,
-  targetBoxCards: box.cards,
-  summary: localStats,
-  dealerCard,
-  runningCount,
-  remainingCards,
-  trueCount: tc,
-  deckState: { ...deckState },
-  drawnCards: [...drawnCards],
-
-  // 👇 AGGIUNGI QUESTO BLOCCO
-  currentRound: {
-    roundId,
-    initialDistributionComplete,
-    roundHistory: [...roundHistory],
-    boxes: boxes.map(b => ({
-      id: b.id,
-      active: b.active,
-      owner: b.owner,
-      cards: [...b.cards],
-      suggestion: b.suggestion
-    })),
-    dealerCard
-  }
-};
-
+      targetBoxIndex: boxIndex,
+      targetTotalCards: totalCards,
+      targetBoxCards: box.cards,
+      summary: localStats,
+      dealerCard,
+      runningCount,
+      remainingCards,
+      trueCount: tc,
+      deckState: { ...deckState },
+      drawnCards: [...drawnCards],
+      currentRound: {
+        roundId,
+        initialDistributionComplete,
+        roundHistory: [...roundHistory],
+        boxes: boxes.map(b => ({
+          id: b.id,
+          active: b.active,
+          owner: b.owner,
+          cards: [...b.cards],
+          suggestion: b.suggestion
+        })),
+        dealerCard
+      }
+    };
 
     console.log("🚀 Invio dati round al server:", payload);
 
-   const response = await fetch("https://cardtracker-2.onrender.com/api/suggestion", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify(payload),
-});
+    const response = await fetch("https://cardtracker-2.onrender.com/api/suggestion", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
 
-const data = await response.json();
+    const data = await response.json();
+    console.log("📩 Risposta server:", data);
 
-console.log("📩 Risposta server:", data);
-// --- controlla varie forme di risposta ---
-if (data?.mossaConsigliata) {
-  updateSuggestionUI(boxIndex, data);
-  return {
-    action: data.mossaConsigliata,
-    ev: data.valoreAtteso ?? 0,
-    trueCount: tc,
-    stats: {
-      noBust: data.probabilitaNonSballo,
-      pvsd: data.probabilitaBattereBanco
-    }
-  };
-}
+    // Cerco le possibili strutture della risposta
+    const suggestionData =
+      data?.mossaConsigliata ? data :
+      data?.suggestion?.mossaConsigliata ? data.suggestion :
+      data?.result ? data.result :
+      { mossaConsigliata: "—", probabilitaBattereBanco: 0, probabilitaNonSballo: 0, valoreAtteso: 0 };
 
-// ✅ caso server: { success:true, suggestion:{...} }
-if (data?.suggestion?.mossaConsigliata) {
-  updateSuggestionUI(boxIndex, data.suggestion);
-  return {
-    action: data.suggestion.mossaConsigliata,
-    ev: data.suggestion.valoreAtteso ?? 0,
-    trueCount: tc,
-    stats: {
-      noBust: data.suggestion.probabilitaNonSballo,
-      pvsd: data.suggestion.probabilitaBattereBanco
-    }
-  };
-}
-
-// fallback alternativo
-if (data?.result) {
-  updateSuggestionUI(boxIndex, data.result);
-  return {
-    action: data.result.mossaConsigliata,
-    ev: data.result.valoreAtteso ?? 0,
-    trueCount: tc,
-    stats: {
-      noBust: data.result.probabilitaNonSballo,
-      pvsd: data.result.probabilitaBattereBanco
-    }
-  };
-}
-
-
-// Altrimenti fallback
-console.warn("⚠️ computeSuggestionForBox: risposta inattesa", data);
-updateSuggestionUI(boxIndex, { 
-  mossaConsigliata: "—", 
-  probabilitaBattereBanco: 0, 
-  probabilitaNonSballo: 0, 
-  valoreAtteso: 0 
-});
-//return { action: "—", ev: 0, trueCount: tc };
-
-
-    const suggestionData = data?.suggestion || {
-      mossaConsigliata: "—",
-      probabilitaBattereBanco: 0,
-      probabilitaNonSballo: 0,
-      valoreAtteso: 0
-    };
-
-    // Salvo la suggestion per eventuali controlli futuri
+    // Salvo la suggestion nella box
     box.suggestion = suggestionData;
 
-    // Aggiorno la UI con i nomi esatti che arrivano dall'AI
+    // Aggiorno la UI
     updateSuggestionUI(boxIndex, suggestionData);
 
     return {
@@ -1027,8 +973,9 @@ updateSuggestionUI(boxIndex, {
 
   } catch (err) {
     console.error("❌ Errore nel contatto con API o Render:", err);
-    updateSuggestionUI(boxIndex, { mossaConsigliata: "—", probabilitaBattereBanco: 0, probabilitaNonSballo: 0, valoreAtteso: 0 });
-    return { action: "—", ev: 0, trueCount: tc };
+    const emptySuggestion = { mossaConsigliata: "—", probabilitaBattereBanco: 0, probabilitaNonSballo: 0, valoreAtteso: 0 };
+    updateSuggestionUI(boxIndex, emptySuggestion);
+    return { action: "—", ev: 0, trueCount: 0 };
   }
 }
 
