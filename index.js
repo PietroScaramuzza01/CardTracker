@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import fetch from "node-fetch"; // se usi Node < 18, altrimenti puoi rimuovere
+
 
 dotenv.config();
 
@@ -231,4 +231,8 @@ Non aggiungere testo fuori dal JSON.
     console.error("❌ Errore API:", error);
     return res.status(500).json({ success: false, error: error.message });
   }
+});
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
+  console.log("🚀 API Blackjack attiva su porta", PORT);
 });
