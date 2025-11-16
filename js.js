@@ -461,10 +461,12 @@ gameHistory.push({
 });
 
   // aggiorna suggerimento solo se dealerCard è noto
-    if (dealerCard) {
-    const suggestionResult = await computeSuggestionForBox(recipientIndex);
-    box.suggestion = suggestionResult.action || "—";
-  }
+  if (dealerCard && !nextBox.suggestionRequested) {
+  nextBox.suggestionRequested = true;
+  const result = await computeSuggestionForBox(idx);
+  nextBox.suggestion = result?.action || "—";
+}
+
 
   // aggiorna la UI
   updateUI();
@@ -738,6 +740,7 @@ function updateSuggestionUI(boxIndex, res) {
   const noBustEl = ui.querySelector(".no-bust");
   const pvsdEl = ui.querySelector(".player-vs-dealer");
   const valoreAttesoEl = ui.querySelector(".valore-atteso");
+
 
   if (!suggestedActionEl || !noBustEl || !pvsdEl || !valoreAttesoEl) {
     console.log("ATTENZIONE - elementi UI mancanti");
