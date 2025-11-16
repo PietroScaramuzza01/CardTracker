@@ -494,6 +494,9 @@ async function assignNextInitialCard(card) {
 
     applyCardEffects(card);
     checkInitialDistributionComplete();
+    updateUI();
+updateRightSide();
+
     return;
   }
 
@@ -506,6 +509,9 @@ async function assignNextInitialCard(card) {
 
     applyCardEffects(card);
     checkInitialDistributionComplete();
+    updateUI();
+updateRightSide();
+
     return;
   }
 
@@ -520,6 +526,9 @@ async function assignNextInitialCard(card) {
 
     applyCardEffects(card);
     checkInitialDistributionComplete();
+    updateUI();
+updateRightSide();
+
 
     if (dealerCard) {
       const result = await computeSuggestionForBox(idx);
@@ -898,6 +907,7 @@ async function computeSuggestionForBox(boxIndex) {
 
     const payload = {
   targetBoxIndex: boxIndex,
+  targetTotalCards : totalCards,
   targetBoxCards: box.cards,
   summary: localStats,
   dealerCard,

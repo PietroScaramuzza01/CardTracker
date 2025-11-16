@@ -16,17 +16,48 @@ app.get("/", (req, res) => {
 
 // 🔹 Endpoint principale
 app.post("/api/suggestion", async (req, res) => {
-  
-  const { summary, playerCards, dealerCard, deckState, roundHistory, roundId, boxes, runningCount, remainingCards } = req.body;
-console.log("🎲 roundId:", roundId, "events:", (roundHistory && roundHistory.length) || 0);
+  // Destructuring - prendi tutto quello che il frontend dovrebbe inviare
+  const {
+    summary,
+    playerCards,
+    dealerCard,
+    deckState,
+    roundHistory,
+    roundId,
+    boxes,
+    runningCount,
+    remainingCards,
+    drawnCards,
+    gameHistory, 
+    totalCards
+  } = req.body;
 
-  console.log("🧮 Ricevuto summary:", summary);
-  console.log("📊 Deck state:", deckState);
+  console.log("🎲 roundId:", roundId, "events:", (roundHistory && roundHistory.length) || 0);
+
+  // Basic validation
+  if (!process.env.OPENAI_API_KEY) {
+    console.error("🔑 OPENAI_API_KEY mancante");
+    return res.status(500).json({ success: false, error: "Server misconfiguration: OPENAI_API_KEY mancante" });
+  }
 
   try {
     const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
-const lastEvents = (roundHistory && roundHistory.slice(-100)) || [];
+    // Safe stringify helpers with truncation to avoid prompt troppo grande
+    const safeStringify = (obj, maxLen = 8_000) => {
+      try {
+        const s = JSON.stringify(obj, null, 2);
+        if (s.length > maxLen) return s.slice(0, maxLen) + "\n... (troncato)";
+        return s;
+      } catch (e) {
+        return String(obj);
+      }
+    };
+
+    const lastEvents = Array.isArray(roundHistory) ? roundHistory.slice(-100) : [];
+    const drawnSample = Array.isArray(drawnCards) ? drawnCards.slice(-200) : [];
+    const historySample = Array.isArray(gameHistory) ? gameHistory.slice(-200) : [];
+
     // 🔹 Prompt per GPT (puoi personalizzarlo)
     const prompt = `
 Agisci come un esperto di Blackjack con competenze avanzate in:
@@ -37,47 +68,60 @@ Agisci come un esperto di Blackjack con competenze avanzate in:
 
 Il tuo compito è analizzare lo stato attuale del gioco e la cronologia completa delle carte e delle azioni, quindi restituire la decisione ottimale per il box specificato.
 
-────────────────────────
-📌 DATI DISPONIBILI
-────────────────────────
-Ti fornisco:
+DATI DISPONIBILI
+TAgisci come un esperto di Blackjack con competenze avanzate in:
+- teoria delle probabilità
+- simulazioni Monte Carlo
+- conteggio delle carte (Hi-Lo)
+- analisi sequenziale delle decisioni (cronologia delle mosse)
 
-1. summary del box da analizzare:
-${JSON.stringify(summary, null, 2)}
+DATI:
+summary del box:
+${safeStringify(summary, 3000)}
 
-2. Stato completo del mazzo (deckState):
-${JSON.stringify(deckState)}
+deckState:
+${safeStringify(deckState, 3000)}
 
-3. Carte rimanenti nel mazzo: ${remainingCards}  
-4. runningCount e trueCount attuali: ${runningCount}  
-5. dealerCard visibile ${dealerCard}  
-6. Situazione completa di tutti i box (tutti i player boxes)  ${boxes}
-7. Cronologia completa del round (gameHistory), che include tutte le carte assegnate, i conteggi al momento dell’evento e lo stato dei box. ${lastEvents}
-8. Le carte del player: ${playerCards}
-Questi dati rappresentano **la memoria perfetta dell’intero round**, quindi puoi ricostruire ogni informazione utile per calcolare in modo preciso il valore atteso delle possibili azioni.
+remainingCards: ${remainingCards}
+runningCount: ${runningCount}
+dealerCard: ${dealerCard}
 
-────────────────────────
-📌 SIGNIFICATO DEI CAMPI DI SUMMARY
-────────────────────────
+boxes (stato attuale):
+${safeStringify(boxes, 4000)}
+
+ultimi eventi del round (slice -100):
+${safeStringify(lastEvents, 8000)}
+
+estratto drawnCards (ultime 200):
+${safeStringify(drawnSample, 4000)}
+
+estratto gameHistory (ultimi 200):
+${safeStringify(historySample, 4000)}
+
+playerCards (target):
+${safeStringify(playerCards, 2000)}
+
+
+SIGNIFICATO DEI CAMPI DI SUMMARY
+
 - total: totale attuale della mano del giocatore
-- soft: valore della mano se considera un Asso come 11
+- soft: valore della mano se considera un Asso come 11 
 - isSoft: true se la mano è soft
 - isPair: true se le due carte iniziali sono una coppia
 - dealerValue: valore della carta visibile del banco
 - trueCount: running count normalizzato per i mazzi rimanenti
 - highPct / lowPct: probabilità relative di carte alte e basse rimanenti nel mazzo
 
-────────────────────────
-📌 IPOTESI DI GIOCO
-────────────────────────
+
+IPOTESI DI GIOCO
+
 - Il banco si ferma su 17 (stand su soft 17)
 - Il mazzo contiene ${Object.values(deckState).reduce((a,b)=>a+b,0)} carte rimanenti
-- Gli Assi possono valere 1 o 11
+- Gli Assi possono valere 1 o 11 -> se il giocatore sta l'asso vale 11 se la somma 21, se il giocatore chiama e la somma con 11 supera 21 allora l'asso vale 1 (come le regole di blackjack)
 - Azioni permise: **hit**, **stand**, **double** (solo se il player ha due carte), **split**, **cash_out**
+- Il mazzo è composto da ${totalCards} carte, la catting card viene inserita circa a metà mazzo quindi il dealer ne userà circa la metà
+COMPITO
 
-────────────────────────
-📌 COMPITO
-────────────────────────
 Usa *sia lo stato attuale* sia *la cronologia del round* per:
 
 1. Calcolare o stimare tramite simulazione Monte Carlo:
@@ -94,9 +138,8 @@ Usa *sia lo stato attuale* sia *la cronologia del round* per:
 
 3. Fornire la **mossa ottimale**, quella con il valore atteso più alto.
 
-────────────────────────
-📌 FORMATO DI RISPOSTA (OBBLIGATORIO)
-────────────────────────
+FORMATO DI RISPOSTA (OBBLIGATORIO)
+
 Rispondi esclusivamente con JSON valido:
 
 {
@@ -109,8 +152,7 @@ Rispondi esclusivamente con JSON valido:
 Non aggiungere testo fuori dal JSON.
 
 `;
-
-  // 🔹 Chiamata GPT
+ // 🔹 Chiamata GPT
     const gptResponse = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -124,35 +166,59 @@ Non aggiungere testo fuori dal JSON.
       }),
     });
 
-    if (!gptResponse.ok) throw new Error(`Errore GPT (${gptResponse.status})`);
-    const gptData = await gptResponse.json();
-    const suggestionText = gptData.choices?.[0]?.message?.content || "{}";
+    if (!gptResponse.ok) {
+      // stampa body di errore per debug
+      const errText = await gptResponse.text().catch(()=>"<no body>");
+      console.error("Errore OpenAI:", gptResponse.status, errText);
+      throw new Error(`Errore GPT (${gptResponse.status})`);
+    }
 
-    // 🔹 Parsing sicuro JSON da GPT
+    const gptData = await gptResponse.json();
+    const suggestionText = (gptData.choices?.[0]?.message?.content) || "";
+    console.log("🧾 suggestionText (raw):", suggestionText.slice(0, 2000)); // log troncato
+
+    // robust JSON parse: trova primo { e l'ultima } compatibile (semplice)
     const parseJsonFromText = (text) => {
+      if (!text || typeof text !== "string") return {};
+      const start = text.indexOf("{");
+      const end = text.lastIndexOf("}");
+      if (start === -1 || end === -1 || end <= start) return {};
+      const candidate = text.slice(start, end + 1);
       try {
-        const start = text.indexOf("{");
-        const end = text.lastIndexOf("}");
-        if (start === -1 || end === -1) return {};
-        return JSON.parse(text.slice(start, end + 1));
-      } catch {
-        return {};
+        return JSON.parse(candidate);
+      } catch (e) {
+        // fallback: prova a sanificare virgole finali
+        try {
+          const cleaned = candidate.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]");
+          return JSON.parse(cleaned);
+        } catch (err) {
+          console.warn("parseJsonFromText failed:", err);
+          return {};
+        }
       }
     };
 
     const parsed = parseJsonFromText(suggestionText);
 
-    // 🔹 Normalizza valori con fallback
+    // Normalizza / sanitize i valori numerici e range
+    const toFloat01 = (v, fallback) => {
+      const n = typeof v === "number" ? v : parseFloat(v);
+      if (!Number.isFinite(n)) return fallback;
+      if (n < 0) return 0;
+      if (n > 1) return Math.max(Math.min(n, 1), fallback);
+      return n;
+    };
+
     const suggestion = {
       mossaConsigliata: parsed.mossaConsigliata ?? "stand",
-      probabilitaNonSballo: parseFloat(parsed.probabilitaNonSballo) || 1,
-      probabilitaBattereBanco: parseFloat(parsed.probabilitaBattereBanco) || 0.5,
-      valoreAtteso: parseFloat(parsed.valoreAtteso) || 0,
+      probabilitaNonSballo: toFloat01(parsed.probabilitaNonSballo, 1),
+      probabilitaBattereBanco: toFloat01(parsed.probabilitaBattereBanco, 0.5),
+      valoreAtteso: typeof parsed.valoreAtteso === "number" ? Math.max(Math.min(parsed.valoreAtteso, 1), -1) : (parseFloat(parsed.valoreAtteso) || 0)
     };
 
     console.log(`📩 Suggerimento generato per roundId ${roundId}:`, suggestion);
 
-    res.json({
+    return res.json({
       success: true,
       suggestion,
       ...suggestion // compatibilità frontend
@@ -160,10 +226,6 @@ Non aggiungere testo fuori dal JSON.
 
   } catch (error) {
     console.error("❌ Errore API:", error);
-    res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({ success: false, error: error.message });
   }
 });
-
-// 🔹 Porta
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`🚀 Relay server attivo su porta ${PORT}`));
