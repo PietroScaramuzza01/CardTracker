@@ -43,6 +43,10 @@ let assignmentHistory = []; // elementi: { card: "10", recipient: idx | "DEALER"
 let currentActiveBoxIndex = null;
 
 let selectedBoxIndex = null; // impostata quando premi “Aggiorna” su un box
+// CRONOLOGIA LOCALE — per round e per sessione
+let roundId = null;
+let roundHistory = []; // array di eventi { ts, type, payload }
+let gameHistory = []; // opzionale: cronologia di round multipli
 
 let boxes = Array.from({length:7},(_,i)=>({
   id: i+1,
@@ -148,7 +152,11 @@ function initDeck(){
   drawnCards = [];
   deckState = {};
   cardValues.forEach(c => deckState[c] = 4 * numDecks);
-
+  roundId = `round_${Date.now()}`;
+  roundHistory = [];
+  
+  roundHistory.push({ ts: Date.now(), type: "round_start", payload: { roundId, numDecks }});
+ 
   boxes.forEach(b => { b.cards = []; b.suggestion = null; b.tick = false; b.active = false; b.owner = false; });
   dealerCard = null;
   initialDistributionComplete = false;
@@ -304,6 +312,34 @@ function updateRightSide() {
 }
 
 
+function pushRoundEvent(type, payload = {}) {
+  const ev = { ts: Date.now(), type, payload };
+  roundHistory.push(ev);
+  // trimmed history to avoid huge payloads (keep last 200 events)
+  const MAX_EVENTS = 200;
+  if (roundHistory.length > MAX_EVENTS) roundHistory = roundHistory.slice(-MAX_EVENTS);
+  // per debug
+  // console.log("roundEvent", ev);
+}
+
+function recordCardPlay(card, recipient) {
+  // recipient: "DEALER" o box index (number)
+  pushRoundEvent("card_play", { card, recipient, remainingCards, runningCount });
+}
+function recordPlayerAction(boxIndex, action, bet = null) {
+  pushRoundEvent("player_action", { boxIndex, action, bet, cards: [...boxes[boxIndex].cards] });
+}
+function recordDealerAction(action, card = null) {
+  pushRoundEvent("dealer_action", { action, card });
+}
+function recordRoundEnd(result) {
+  pushRoundEvent("round_end", result || {});
+  // archive to gameHistory
+  gameHistory.push({ roundId, events: roundHistory.slice(), endedAt: Date.now(), result });
+  // new round id for next round if you want
+  roundId = `round_${Date.now()}`;
+  roundHistory = [{ ts: Date.now(), type: "round_start", payload: { roundId } }];
+}
 
 // esempio funzione di selezione (da chiamare nel click del pulsante "Aggiorna")
 function selectBoxForUpdate(index) {
@@ -401,6 +437,24 @@ async function addCard(card) {
     recipient: recipientIndex,
     phase: "manual",
   });
+// 📌 ——— AGGIORNA GAME HISTORY PER LA MEMORIA LOCALE ———
+gameHistory.push({
+  action: "add_card",
+  timestamp: Date.now(),
+  card,
+  recipient: recipientIndex,
+  runningCount,
+  trueCount: remainingCards > 0 ? runningCount / (remainingCards/52) : 0,
+  deckState: { ...deckState },
+  drawnCards: [...drawnCards],
+  boxes: boxes.map(b => ({
+    id: b.id,
+    owner: b.owner,
+    active: b.active,
+    cards: [...b.cards]
+  })),
+  dealerCard
+});
 
   // aggiorna suggerimento solo se dealerCard è noto
     if (dealerCard) {
@@ -421,79 +475,58 @@ await updateRightSide();
 
 
  dealerCard = dealerCard || null;
-
-// === assegna NEXT initial card seguendo sequenza cyclic player..dealer .. player.. fino a completamento ===
-// funzione che assegna automaticamente le carte iniziali nell'ordine corretto
 async function assignNextInitialCard(card) {
   const activeBoxes = boxes.filter(b => b.active);
-
-  // Trova quante carte totali sono state già distribuite
   const totalCardsDealt = activeBoxes.reduce((sum, b) => sum + b.cards.length, 0);
   const dealerHasCard = !!dealerCard;
 
-  // --- 1° giro: assegna prima carta ai box attivi ---
+  // --- 1° giro: prima carta ai giocatori ---
   if (totalCardsDealt < activeBoxes.length) {
     const nextBox = activeBoxes[totalCardsDealt];
     nextBox.cards.push(card);
+
     const idx = boxes.indexOf(nextBox);
     assignmentHistory.push({ card, recipient: idx, phase: "initial" });
-    console.log(`🃏 Carta iniziale ${card} → Box ${idx + 1} (prima)`);
-    updateRightSide();
+
+    applyCardEffects(card);
     checkInitialDistributionComplete();
     return;
   }
 
-  // --- 2° giro: assegna carta al dealer se non ancora assegnata ---
+  // --- 2° giro: carta dealer ---
   if (!dealerHasCard) {
     dealerCard = card;
+
     assignmentHistory.push({ card, recipient: "DEALER", phase: "initial" });
-    console.log(`🂠 Carta ${card} → Dealer`);
-    updateDealerCard();
-    updateRightSide();
+    recordCardPlay(card, "DEALER");
+
+    applyCardEffects(card);
     checkInitialDistributionComplete();
     return;
   }
 
-  // --- 3° giro: assegna seconda carta ai box ---
+  // --- 3° giro: seconda carta ai giocatori ---
   const boxesWithOneCard = activeBoxes.filter(b => b.cards.length === 1);
   if (boxesWithOneCard.length > 0) {
     const nextBox = boxesWithOneCard[0];
     nextBox.cards.push(card);
+
     const idx = boxes.indexOf(nextBox);
     assignmentHistory.push({ card, recipient: idx, phase: "initial" });
-    console.log(`🃏 Carta iniziale ${card} → Box ${idx + 1} (seconda)`);
 
-    // Ora possiamo calcolare il suggerimento (dealerCard esiste)
-    if (dealerCard) {
-  for (const [i, b] of boxes.entries()) {
-    if (b.active && b.cards.length >= 2) {
-      const result = await computeSuggestionForBox(i);
-      b.suggestion = result?.action || "—";
-    }
-
-      console.log(
-        `Box ${idx + 1} (Initial) - Carte: [${nextBox.cards.join(", ")}], Suggerimento: ${nextBox.suggestion}`
-      );
-    }
-  }
-    updateDealerCard();
-    updateRightSide();
+    applyCardEffects(card);
     checkInitialDistributionComplete();
-    computeSuggestionForBox()
-    return;
-  }
 
-  // --- Se tutte le carte iniziali sono già state distribuite ---
-  if (dealerCard) {
-    boxes.forEach((b, i) => {
-      if (b.active && b.cards.length >= 2) computeSuggestionForBox(i);
-    });
+    if (dealerCard) {
+      const result = await computeSuggestionForBox(idx);
+      nextBox.suggestion = result?.action || "—";
+    }
+
+    return;
   }
 
   console.warn("assignNextInitialCard: nessun destinatario per", card);
 }
-
-
 
 
 
@@ -591,7 +624,7 @@ function closeRound(){
 }
 
 // --- UNDO ---
-function undoCard(){
+async function undoCard(){
   // disable add button briefly to avoid race
   addBtn.disabled = true;
   if (!drawnCards.length) {
@@ -619,6 +652,28 @@ function undoCard(){
 
   // aggiorna l’ultimo valore visualizzato (safe)
   lastCardEl.textContent = drawnCards.length ? drawnCards[drawnCards.length-1] : "—";
+gameHistory.push({
+  action: "undo_card",
+  timestamp: Date.now(),
+  card: last,
+  recipient: lastAssign.recipient,
+  runningCount,
+  trueCount: remainingCards > 0 ? runningCount / (remainingCards/52) : 0,
+  deckState: { ...deckState },
+  drawnCards: [...drawnCards],
+  boxes: boxes.map(b => ({
+    id: b.id,
+    owner: b.owner,
+    active: b.active,
+    cards: [...b.cards]
+  })),
+  dealerCard
+});
+// Aggiorna suggerimento per il box se il dealer è noto
+if (lastAssign.recipient !== "DEALER" && typeof lastAssign.recipient === "number" && dealerCard) {
+  const suggestionResult = await computeSuggestionForBox(lastAssign.recipient);
+  boxes[lastAssign.recipient].suggestion = suggestionResult?.action || "—";
+}
 
   updateUI();
   updateDealerCard();
@@ -838,12 +893,32 @@ async function computeSuggestionForBox(boxIndex) {
     const tc = decksRemaining > 0 ? runningCount / decksRemaining : 0;
 
     const payload = {
-      summary: localStats,
-      playerCards: box.cards,
-      dealerCard: dealerCard,
-      trueCount: tc,
-      deckState: deckState
-    };
+  targetBoxIndex: boxIndex,
+  targetBoxCards: box.cards,
+  summary: localStats,
+  dealerCard,
+  runningCount,
+  remainingCards,
+  trueCount: tc,
+  deckState: { ...deckState },
+  drawnCards: [...drawnCards],
+
+  // 👇 AGGIUNGI QUESTO BLOCCO
+  currentRound: {
+    roundId,
+    initialDistributionComplete,
+    roundHistory: [...roundHistory],
+    boxes: boxes.map(b => ({
+      id: b.id,
+      active: b.active,
+      owner: b.owner,
+      cards: [...b.cards],
+      suggestion: b.suggestion
+    })),
+    dealerCard
+  }
+};
+
 
     console.log("🚀 Invio dati round al server:", payload);
 
@@ -1076,39 +1151,7 @@ playerBoxes.forEach((boxEl, idx) => {
     });
   }
 });
-function undoCard(){
-  addBtn.disabled = true;
-  if (!drawnCards.length) return showMessage("Nessuna carta da annullare");
 
-  const last = drawnCards.pop();
-  deckState[last] = (deckState[last] || 0) + 1;
-  remainingCards++;
-  runningCount -= hiLoValues[last] || 0;
-
-  const lastAssign = assignmentHistory.pop();
-  if (lastAssign) {
-    if (lastAssign.recipient === "DEALER") {
-      dealerCard = null;
-    } else if (typeof lastAssign.recipient === "number") {
-      const b = boxes[lastAssign.recipient];
-      const idx = b.cards.lastIndexOf(last);
-      if (idx !== -1) b.cards.splice(idx, 1);
-    }
-    if (lastAssign.phase === "initial") initialDistributionComplete = false;
-  }
-
-  // Aggiorna input per prevenire alert
-  cardInput.value = "";
-
-  // aggiorna l’ultimo valore visualizzato
-  lastCardEl.textContent = drawnCards.at(-1) || "—";
- cardInput.value = "";
-  lastCardEl.textContent = drawnCards.at(-1) || "—";
-  updateUI();
-  updateDealerCard();
-  updateRightSide();
-  setTimeout(()=> addBtn.disabled = false, 50); // riattiva subito dopo
-}
 
 function showMessage(msg) {
   const div = document.createElement("div");

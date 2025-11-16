@@ -16,52 +16,89 @@ app.get("/", (req, res) => {
 
 // 🔹 Endpoint principale
 app.post("/api/suggestion", async (req, res) => {
-  const { summary, playerCards, dealerCard, deckState } = req.body;
+  
+  const { summary, playerCards, dealerCard, deckState, roundHistory, roundId, boxes, runningCount, remainingCards } = req.body;
+console.log("🎲 roundId:", roundId, "events:", (roundHistory && roundHistory.length) || 0);
+
   console.log("🧮 Ricevuto summary:", summary);
   console.log("📊 Deck state:", deckState);
 
   try {
     const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
-
+const lastEvents = (roundHistory && roundHistory.slice(-100)) || [];
     // 🔹 Prompt per GPT (puoi personalizzarlo)
     const prompt = `
-Agisci come un esperto di Blackjack con competenze statistiche e di conteggio carte (Hi-Lo system).  
-Il tuo compito è analizzare lo stato attuale del mazzo e della mano e restituire una decisione di gioco ottimale basata su calcolo probabilistico e simulazione Monte Carlo.
+Agisci come un esperto di Blackjack con competenze avanzate in:
+- teoria delle probabilità
+- simulazioni Monte Carlo
+- conteggio delle carte (Hi-Lo system)
+- analisi sequenziale delle decisioni (storia delle mosse)
 
-Ecco i dati forniti:
+Il tuo compito è analizzare lo stato attuale del gioco e la cronologia completa delle carte e delle azioni, quindi restituire la decisione ottimale per il box specificato.
+
+────────────────────────
+📌 DATI DISPONIBILI
+────────────────────────
+Ti fornisco:
+
+1. summary del box da analizzare:
 ${JSON.stringify(summary, null, 2)}
 
-Significato dei campi:
-- total: totale della mano del giocatore
-- soft: valore soft (se c’è un asso che può valere 11)
+2. Stato completo del mazzo (deckState):
+${JSON.stringify(deckState)}
+
+3. Carte rimanenti nel mazzo: ${remainingCards}  
+4. runningCount e trueCount attuali: ${runningCount}  
+5. dealerCard visibile ${dealerCard}  
+6. Situazione completa di tutti i box (tutti i player boxes)  ${boxes}
+7. Cronologia completa del round (gameHistory), che include tutte le carte assegnate, i conteggi al momento dell’evento e lo stato dei box. ${lastEvents}
+8. Le carte del player: ${playerCards}
+Questi dati rappresentano **la memoria perfetta dell’intero round**, quindi puoi ricostruire ogni informazione utile per calcolare in modo preciso il valore atteso delle possibili azioni.
+
+────────────────────────
+📌 SIGNIFICATO DEI CAMPI DI SUMMARY
+────────────────────────
+- total: totale attuale della mano del giocatore
+- soft: valore della mano se considera un Asso come 11
 - isSoft: true se la mano è soft
-- isPair: true se le carte sono una coppia
-- dealerValue: valore carta visibile del banco
+- isPair: true se le due carte iniziali sono una coppia
+- dealerValue: valore della carta visibile del banco
 - trueCount: running count normalizzato per i mazzi rimanenti
-- highPct / lowPct: probabilità relative di carte alte e basse rimanenti
+- highPct / lowPct: probabilità relative di carte alte e basse rimanenti nel mazzo
 
-Azioni possibili: **hit**, **stand**, **double**, **split**, **cash_out**
+────────────────────────
+📌 IPOTESI DI GIOCO
+────────────────────────
+- Il banco si ferma su 17 (stand su soft 17)
+- Il mazzo contiene ${Object.values(deckState).reduce((a,b)=>a+b,0)} carte rimanenti
+- Gli Assi possono valere 1 o 11
+- Azioni permise: **hit**, **stand**, **double** (solo se il player ha due carte), **split**, **cash_out**
 
-Ipotizza che:
-- Il banco si ferma su 17 (stand su soft 17).
-- Il mazzo è composto da ${Object.values(deckState).reduce((a,b)=>a+b,0)} carte rimanenti.
-- Stato del mazzo (numero di carte rimanenti per valore): ${JSON.stringify(deckState)}
-- Gli assi possono valere 1 o 11 a seconda del contesto.
-- Il giocatore può scegliere tra: hit, stand, double, split, cash_out.
+────────────────────────
+📌 COMPITO
+────────────────────────
+Usa *sia lo stato attuale* sia *la cronologia del round* per:
 
-Compito:
-1. Stima le probabilità di ciascuna mossa:
-   - Probabilità di NON sballare con **Hit**.
-   - Probabilità di vincere contro il banco con **Stand**.
-   - Probabilità attesa di vincita con **Double**.
-   - Probabilità di vantaggio medio con **Split** (se carte uguali).
-   - Probabilità attesa di mantenere un EV positivo con **Cash Out**.
-2. Fai una simulazione Monte Carlo (simula 1000 round) o ragionamento probabilistico avanzato basato sul conteggio carte.
-3. Scegli la **mossa ottimale** (quella con il valore atteso di vincita più alto).
-4. Restituisci il risultato in formato JSON puro
+1. Calcolare o stimare tramite simulazione Monte Carlo:
+   - Probabilità di NON sballare con **Hit**
+   - Probabilità di vincere contro il banco con **Stand**
+   - Valore atteso della mossa **Double** (solo se il player ha 2 carte)
+   - Vantaggio medio di **Split** (se la mano è splittabile)
+   - Valore atteso del **Cash Out**
 
-Formato di risposta richiesto (solo json):
+2. Considerare l’impatto del conteggio carte (running/true count) su:
+   - probabilità di pescare carte alte / basse / specifiche
+   - probabilità di sballare
+   - probabilità che il banco superi o rimanga sotto il punteggio del giocatore
+
+3. Fornire la **mossa ottimale**, quella con il valore atteso più alto.
+
+────────────────────────
+📌 FORMATO DI RISPOSTA (OBBLIGATORIO)
+────────────────────────
+Rispondi esclusivamente con JSON valido:
+
 {
   "mossaConsigliata": "hit | stand | double | split | cash_out",
   "probabilitaNonSballo": numero tra 0 e 1,
@@ -69,11 +106,11 @@ Formato di risposta richiesto (solo json):
   "valoreAtteso": numero tra -1 e +1
 }
 
-Restituisci solo JSON valido.  Nessun testo o spiegazione fuori dal formato.
+Non aggiungere testo fuori dal JSON.
+
 `;
 
-
-    // 🔹 Chiamata API GPT
+  // 🔹 Chiamata GPT
     const gptResponse = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -88,63 +125,38 @@ Restituisci solo JSON valido.  Nessun testo o spiegazione fuori dal formato.
     });
 
     if (!gptResponse.ok) throw new Error(`Errore GPT (${gptResponse.status})`);
-
     const gptData = await gptResponse.json();
-    let suggestionText = gptData.choices?.[0]?.message?.content || "{}";
+    const suggestionText = gptData.choices?.[0]?.message?.content || "{}";
 
-    // 🔹 Default suggestion
-    // default suggestion valida (mai undefined)
-    // 🔹 Default suggestion (mai undefined)
-let suggestion = {
-  mossaConsigliata: "stand",
-  probabilitaNonSballo: 1,
-  probabilitaBattereBanco: 0.5,
-  valoreAtteso: 0
-};
+    // 🔹 Parsing sicuro JSON da GPT
+    const parseJsonFromText = (text) => {
+      try {
+        const start = text.indexOf("{");
+        const end = text.lastIndexOf("}");
+        if (start === -1 || end === -1) return {};
+        return JSON.parse(text.slice(start, end + 1));
+      } catch {
+        return {};
+      }
+    };
 
-function tryParseJsonFromText(text) {
-  if (!text || typeof text !== 'string') return null;
-  // cerca il primo oggetto JSON presente nel testo (dalla prima "{" all'ultima "}")
-  const start = text.indexOf('{');
-  const end = text.lastIndexOf('}');
-  if (start === -1 || end === -1 || end <= start) return null;
-  const jsonStr = text.slice(start, end + 1);
-  try {
-    return JSON.parse(jsonStr);
-  } catch (e) {
-    return null;
-  }
-}
+    const parsed = parseJsonFromText(suggestionText);
 
-try {
-  // prova a parsare direttamente
-  const parsedDirect = tryParseJsonFromText(suggestionText);
+    // 🔹 Normalizza valori con fallback
+    const suggestion = {
+      mossaConsigliata: parsed.mossaConsigliata ?? "stand",
+      probabilitaNonSballo: parseFloat(parsed.probabilitaNonSballo) || 1,
+      probabilitaBattereBanco: parseFloat(parsed.probabilitaBattereBanco) || 0.5,
+      valoreAtteso: parseFloat(parsed.valoreAtteso) || 0,
+    };
 
-  if (parsedDirect && typeof parsedDirect === 'object') {
-    // normalizza i campi previsti (usa ?? per preservare default)
-    suggestion.mossaConsigliata = parsedDirect.mossaConsigliata ?? suggestion.mossaConsigliata;
-    suggestion.probabilitaNonSballo = Number(parsedDirect.probabilitaNonSballo ?? suggestion.probabilitaNonSballo);
-    suggestion.probabilitaBattereBanco = Number(parsedDirect.probabilitaBattereBanco ?? suggestion.probabilitaBattereBanco);
-    suggestion.valoreAtteso = Number(parsedDirect.valoreAtteso ?? suggestion.valoreAtteso);
-  } else {
-    console.warn("⚠️ Non ho trovato JSON valido nella risposta GPT, testo ricevuto:", suggestionText);
-  }
-} catch (err) {
-  console.warn("⚠️ Errore parsing GPT response:", err, suggestionText);
-}
+    console.log(`📩 Suggerimento generato per roundId ${roundId}:`, suggestion);
 
-// Log finale debug
-console.log("📩 Risposta suggerimento finale (normalized):", suggestion);
-
-// Rispondi anche mettendo i campi in root per compatibilità frontend
-res.json({
-  success: true,
-  suggestion,
-  mossaConsigliata: suggestion.mossaConsigliata,
-  probabilitaNonSballo: suggestion.probabilitaNonSballo,
-  probabilitaBattereBanco: suggestion.probabilitaBattereBanco,
-  valoreAtteso: suggestion.valoreAtteso
-});
+    res.json({
+      success: true,
+      suggestion,
+      ...suggestion // compatibilità frontend
+    });
 
   } catch (error) {
     console.error("❌ Errore API:", error);
