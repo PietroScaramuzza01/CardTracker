@@ -57,6 +57,9 @@ app.post("/api/suggestion", async (req, res) => {
     const lastEvents = Array.isArray(roundHistory) ? roundHistory.slice(-100) : [];
     const drawnSample = Array.isArray(drawnCards) ? drawnCards.slice(-200) : [];
     const historySample = Array.isArray(gameHistory) ? gameHistory.slice(-200) : [];
+const safeTotalCards = Number.isFinite(totalCards)
+  ? totalCards
+  : (deckState ? Object.values(deckState).reduce((a, b) => a + b, 0) : 0);
 
     // 🔹 Prompt per GPT (puoi personalizzarlo)
     const prompt = `
@@ -116,10 +119,10 @@ SIGNIFICATO DEI CAMPI DI SUMMARY
 IPOTESI DI GIOCO
 
 - Il banco si ferma su 17 (stand su soft 17)
-- Il mazzo contiene ${Object.values(deckState).reduce((a,b)=>a+b,0)} carte rimanenti
+- Il mazzo contiene ${(deckState && Object.values(deckState).reduce((a,b)=>a+b,0)) || 0} carte rimanenti
 - Gli Assi possono valere 1 o 11 -> se il giocatore sta l'asso vale 11 se la somma 21, se il giocatore chiama e la somma con 11 supera 21 allora l'asso vale 1 (come le regole di blackjack)
 - Azioni permise: **hit**, **stand**, **double** (solo se il player ha due carte), **split**, **cash_out**
-- Il mazzo è composto da ${totalCards} carte, la catting card viene inserita circa a metà mazzo quindi il dealer ne userà circa la metà
+- Il mazzo è composto da ${safeTotalCards} carte, la catting card viene inserita circa a metà mazzo quindi il dealer ne userà circa la metà
 COMPITO
 
 Usa *sia lo stato attuale* sia *la cronologia del round* per:
