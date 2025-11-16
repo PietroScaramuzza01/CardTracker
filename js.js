@@ -340,6 +340,10 @@ function recordRoundEnd(result) {
   roundId = `round_${Date.now()}`;
   roundHistory = [{ ts: Date.now(), type: "round_start", payload: { roundId } }];
 }
+function applyCardEffects(card) {
+  // TODO: implementa gli effetti della carta (es: aggiornamento conteggi, modifiche box)
+  console.log("applyCardEffects chiamata per:", card);
+}
 
 // esempio funzione di selezione (da chiamare nel click del pulsante "Aggiorna")
 function selectBoxForUpdate(index) {
