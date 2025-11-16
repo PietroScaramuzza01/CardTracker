@@ -150,7 +150,7 @@ Rispondi esclusivamente con JSON valido:
   "probabilitaNonSballo": numero tra 0 e 1,
   "probabilitaBattereBanco": numero tra 0 e 1,
   "valoreAtteso": numero tra -1 e +1
-  "Ragionamento": Perchè sei arrivato a questa conclusione e calcoli 
+  "Ragionamento": "Perchè sei arrivato a questa conclusione e calcoli "
 }
 
 Non aggiungere testo fuori dal JSON.
